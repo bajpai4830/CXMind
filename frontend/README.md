@@ -1,21 +1,13 @@
-# Frontend - CX Analytics Dashboard
+# Frontend - CX Analytics Dashboard (MVP)
 
-## Overview
-Web-based dashboard for visualizing customer experience metrics, journey maps, and analytics.
+React + TypeScript dashboard for CXMind.
 
-## Components
-- Analytics dashboard
-- Customer journey visualization
-- Sentiment and trend analysis views
-- Action tracking interface
+## Quickstart
+```powershell
+cd frontend
+npm install
+npm run dev
+```
 
-## Tech Stack (To Be Defined)
-- React or Vue.js
-- TypeScript
-- State management (Redux, Vuex, or Pinia)
-- Visualization libraries (D3.js, Chart.js)
+Backend should be running on `http://localhost:8000` (Vite proxies `/api/*` and `/health`).
 
-## Coming Soon
-- Component structure
-- API integration layer
-- Styling and design system

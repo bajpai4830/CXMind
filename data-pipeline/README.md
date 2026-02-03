@@ -17,8 +17,11 @@ Data ingestion, transformation, and enrichment pipelines for multi-channel custo
 - Kafka for streaming data
 - Python for custom processors
 
-## Coming Soon
-- Pipeline architecture
-- Connector specifications
-- Data schema definitions
-- Quality metrics
+## MVP: Seed Script
+To generate synthetic interactions and POST them into the backend:
+```powershell
+cd data-pipeline
+python seed_data.py --count 200
+```
+
+By default it targets `http://127.0.0.1:8000`.

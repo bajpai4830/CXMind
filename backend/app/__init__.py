@@ -1,0 +1,2 @@
+"""CXMind backend package."""
+

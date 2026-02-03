@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.venv/
 __pycache__/
 *.pyc
 .env
@@ -19,3 +20,7 @@ Thumbs.db
 dist/
 build/
 *.log
+
+# Local data
+*.db
+backend/.pytest_cache/
