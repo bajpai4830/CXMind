@@ -24,3 +24,4 @@ build/
 # Local data
 *.db
 backend/.pytest_cache/
+backend/ml-models/
