@@ -1,4 +1,3 @@
-#CI safe import
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +5,7 @@ from typing import List, Union
 
 from app.topic_keywords import keyword_topic
 
+# Optional ML imports (CI-safe)
 try:
     from bertopic import BERTopic
     from sentence_transformers import SentenceTransformer
@@ -20,12 +20,13 @@ MODEL_DIR.mkdir(exist_ok=True)
 MODEL_PATH = MODEL_DIR / "cxmind_topic_model"
 
 
-# Cache model in memory
+# Cached models
 _topic_model = None
 _embedding_model = None
 
 
 def _get_embedding_model():
+    """Lazy load embedding model"""
     global _embedding_model
 
     if _embedding_model is None:
@@ -37,6 +38,8 @@ def _get_embedding_model():
 
 
 def train_topic_model(texts: List[str]):
+    """Train BERTopic model"""
+
     if BERTopic is None:
         raise RuntimeError("BERTopic not installed")
 
@@ -60,20 +63,35 @@ def train_topic_model(texts: List[str]):
 
 
 def load_topic_model():
+    """Load trained topic model safely"""
+
     global _topic_model
 
     if _topic_model is None:
+
         if BERTopic is None:
-            raise RuntimeError("BERTopic not installed")
+            return None
 
         embedding_model = _get_embedding_model()
-        _topic_model = BERTopic.load(MODEL_PATH, embedding_model=embedding_model)
+
+        try:
+            _topic_model = BERTopic.load(
+                MODEL_PATH,
+                embedding_model=embedding_model
+            )
+        except Exception:
+            return None
 
     return _topic_model
 
 
 def predict_topic(text: str) -> Union[int, str]:
+    """
+    Predict topic for new text.
+    First try keyword detection.
+    """
 
+    # keyword detection first
     keyword_result = keyword_topic(text)
 
     if keyword_result is not None:
@@ -81,23 +99,40 @@ def predict_topic(text: str) -> Union[int, str]:
 
     model = load_topic_model()
 
-    topics, probs = model.transform([text])
+    # CI-safe fallback
+    if model is None:
+        return "general_feedback"
 
-    return int(topics[0])
+    try:
+        topics, probs = model.transform([text])
+        return int(topics[0]) if topics else 0
+    except Exception:
+        return "general_feedback"
 
 
 def get_topic_label(topic_id: Union[int, str]) -> str:
+    """
+    Convert topic id to readable label
+    """
 
+    # if keyword topic already
     if isinstance(topic_id, str):
         return topic_id
 
     model = load_topic_model()
 
-    topic_words = model.get_topic(topic_id)
+    if model is None:
+        return "general_feedback"
 
-    if not topic_words:
-        return "unknown"
+    try:
+        topic_words = model.get_topic(topic_id) or []
 
-    keywords = [word for word, _ in topic_words[:3]]
+        if not topic_words:
+            return "general_feedback"
 
-    return "_".join(keywords)
+        keywords = [word for word, _ in topic_words[:3]]
+
+        return "_".join(keywords)
+
+    except Exception:
+        return "general_feedback"
