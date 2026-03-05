@@ -20,6 +20,7 @@ class Interaction(Base):
     # VADER compound score in [-1, 1].
     sentiment_compound: Mapped[float] = mapped_column(Float, nullable=False)
     sentiment_label: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    topic: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
