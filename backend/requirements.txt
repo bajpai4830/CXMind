@@ -9,3 +9,4 @@ vaderSentiment==3.3.2
 # dev/test
 pytest==8.3.4
 httpx==0.28.1
+bertopic==0.15.0
