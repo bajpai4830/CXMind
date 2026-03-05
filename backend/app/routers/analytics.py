@@ -177,6 +177,8 @@ def high_risk_customers(db: Session = Depends(get_db)):
                 "total_interactions": len(interactions)
             })
 
+    return results
+
 @router.get("/analytics/cx-forecast")
 def cx_forecast(db: Session = Depends(get_db)):
     return predict_cx_risk(db)
@@ -206,5 +208,3 @@ def customer_journey(customer_id: str, db: Session = Depends(get_db)):
         })
 
     return journey
-
-    return results
