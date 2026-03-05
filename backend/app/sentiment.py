@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from transformers import pipeline
 
 
 @dataclass(frozen=True)
@@ -11,24 +10,25 @@ class SentimentResult:
     label: str
 
 
-_analyzer = SentimentIntensityAnalyzer()
+transformer_pipeline = pipeline(
+    "sentiment-analysis",
+    model="distilbert-base-uncased-finetuned-sst-2-english"
+)
 
 
 def score_text(text: str) -> SentimentResult:
-    # VADER expects natural language; keep as-is except trimming.
     text = (text or "").strip()
     if not text:
         return SentimentResult(compound=0.0, label="neutral")
 
-    compound = float(_analyzer.polarity_scores(text)["compound"])
+    result = transformer_pipeline(text)[0]
 
-    # Common VADER thresholds.
-    if compound >= 0.05:
-        label = "positive"
-    elif compound <= -0.05:
-        label = "negative"
+    label = result["label"].lower()
+    score = float(result["score"])
+
+    if label == "positive":
+        compound = score
     else:
-        label = "neutral"
+        compound = -score
 
     return SentimentResult(compound=compound, label=label)
-

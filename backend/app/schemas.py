@@ -22,6 +22,7 @@ class InteractionOut(BaseModel):
     text: str
     sentiment_compound: float
     sentiment_label: str
+    topic: str | None
     created_at: dt.datetime
 
     model_config = {"from_attributes": True}
