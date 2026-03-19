@@ -35,6 +35,7 @@ export default function App() {
   const [me, setMe] = useState<{ id: number; email: string; role: string } | null>(null);
   const [authEmail, setAuthEmail] = useState("admin@example.com");
   const [authPassword, setAuthPassword] = useState("password123");
+  const [adminSecret, setAdminSecret] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
 
   const [channel, setChannel] = useState("support_ticket");
@@ -95,7 +96,7 @@ export default function App() {
     setAuthBusy(true);
     try {
       if (mode === "register") {
-        await register(authEmail, authPassword);
+        await register(authEmail, authPassword, adminSecret || undefined);
       }
       const out = await login(authEmail, authPassword);
       setAuthToken(out.access_token);
@@ -166,6 +167,10 @@ export default function App() {
                     <span className="fieldLabel">Password</span>
                     <input value={authPassword} type="password" onChange={(e) => setAuthPassword(e.target.value)} placeholder="••••••••" />
                   </label>
+                  <label className="field">
+                    <span className="fieldLabel">Admin Secret</span>
+                    <input value={adminSecret} type="password" onChange={(e) => setAdminSecret(e.target.value)} placeholder="Optional" />
+                  </label>
                 </div>
                 <div className="authActions">
                   <button className="btn btnPrimary" type="submit" disabled={authBusy || !backendOk}>
@@ -176,7 +181,7 @@ export default function App() {
                   </button>
                 </div>
               </form>
-              <div className="muted authHint">First registered user becomes <span className="mono">admin</span>.</div>
+              <div className="muted authHint">Provide secret to register as <span className="mono">admin</span>.</div>
             </div>
           ) : null}
           {error ? (

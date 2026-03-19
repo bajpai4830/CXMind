@@ -143,10 +143,10 @@ export function createInteraction(payload: {
   });
 }
 
-export function register(email: string, password: string): Promise<UserOut> {
+export function register(email: string, password: string, adminSecret?: string): Promise<UserOut> {
   return jsonFetch<UserOut>("/api/v1/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password, admin_secret: adminSecret })
   });
 }
 

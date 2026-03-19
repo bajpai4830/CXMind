@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # Security
     auth_enabled: bool = True
+    admin_secret: str = "supersecret"
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 120
     rate_limit_auth_per_minute: int = 20

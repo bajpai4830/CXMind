@@ -16,9 +16,9 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserOut)
 def register(payload: UserRegister, db: Session = Depends(get_db)) -> UserOut:
-    # First user becomes admin (bootstrap). Others become analysts by default.
-    user_count = int(db.query(func.count(User.id)).scalar() or 0)
-    role = "admin" if user_count == 0 else "analyst"
+    from app.settings import settings
+    # Match admin_secret to grant admin role
+    role = "admin" if payload.admin_secret and payload.admin_secret == settings.admin_secret else "analyst"
 
     try:
         row = auth_service.create_user(db, email=payload.email, password=payload.password, role=role)
