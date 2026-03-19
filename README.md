@@ -68,10 +68,11 @@ cd frontend
 npm install
 ```
 This installs:
-- React, React DOM
+- React, React DOM, React Router DOM
 - Recharts (charts library)
-- Vite (build tool)
-- TypeScript, ESLint (development)
+- Custom Vanilla CSS "Teal Glassmorphism" Design System
+- Lucide React (icons) & React Hot Toast (notifications)
+- Vite (build tool) & TypeScript
 
 ## Repo Layout
 
@@ -113,9 +114,10 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 ### 1b) Create a user (Auth)
-The API requires a bearer token for most endpoints.
-- Register (first user becomes admin): `POST /api/v1/auth/register`
-- Login (get token): `POST /api/v1/auth/login`
+The API securely issues HttpOnly cookies for authentication.
+- Register: `POST /api/v1/auth/register`. (Provide the Admin Secret `supersecret` to gain the `admin` role, otherwise you will be an `analyst`).
+- Login: `POST /api/v1/auth/login`
+- Logout: `POST /api/v1/auth/logout`
 
 ### 2) Seed Sample Data
 In a new terminal:
