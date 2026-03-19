@@ -89,7 +89,6 @@ This installs:
 - `ml-models/` - Model experiments and training scripts
 - `deployment/` - Deployment configurations and IaC (future)
 - `docs/` - Documentation and architecture specs
-- `dashboard.py` - Streamlit dashboard for analytics visualization
 - `requirements.txt` - Python dependencies
 - `.env.example` - Environment variables template
 
@@ -135,16 +134,7 @@ cd backend
 python ..\data-pipeline\train_topic.py
 ```
 
-### 4) Start Streamlit Dashboard
-In a new terminal:
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-streamlit run ..\dashboard.py
-```
-Open at `http://localhost:8501`
-
-### 5) React Frontend Dashboard (Alternative)
+### 4) Start React Frontend Dashboard
 In a new terminal:
 ```powershell
 cd frontend
