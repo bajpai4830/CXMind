@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -31,13 +31,28 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> UserOut:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: UserLogin, db: Session = Depends(get_db)) -> TokenResponse:
+def login(payload: UserLogin, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.authenticate(db, email=payload.email, password=payload.password)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token, ttl = auth_service.encode_access_token(user_id=user.id, role=user.role)
+    
+    response.set_cookie(
+        key="cxmind_token",
+        value=token,
+        max_age=ttl,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+    )
     return TokenResponse(access_token=token, expires_in=ttl)
+
+
+@router.post("/logout")
+def logout(response: Response):
+    response.delete_cookie("cxmind_token")
+    return {"detail": "Logged out"}
 
 
 @router.get("/me")

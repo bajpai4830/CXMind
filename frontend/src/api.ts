@@ -82,38 +82,14 @@ export type Recommendation = {
   created_at: string;
 };
 
-const TOKEN_KEY = "cxmind_access_token";
-let cachedToken: string | null = null;
-
-export function getAuthToken(): string | null {
-  if (cachedToken !== null) return cachedToken;
-  try {
-    cachedToken = localStorage.getItem(TOKEN_KEY);
-  } catch {
-    cachedToken = null;
-  }
-  return cachedToken;
-}
-
-export function setAuthToken(token: string | null) {
-  cachedToken = token;
-  try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined)
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
 
   const r = await fetch(path, {
+    credentials: "include",
     headers,
     ...init
   });
@@ -154,6 +130,12 @@ export function login(email: string, password: string): Promise<TokenResponse> {
   return jsonFetch<TokenResponse>("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password })
+  });
+}
+
+export function logout(): Promise<{ detail: string }> {
+  return jsonFetch<{ detail: string }>("/api/v1/auth/logout", {
+    method: "POST"
   });
 }
 
