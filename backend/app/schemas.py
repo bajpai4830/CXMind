@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import datetime as dt
+import html
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -24,6 +25,11 @@ class InteractionCreate(BaseModel):
     timestamp: dt.datetime | None = Field(default=None, description="Event time at source system (UTC recommended)")
     metadata: dict | None = Field(default=None)
 
+    @field_validator("text", "customer_id", "channel", "interaction_type", "session_id", mode="before", check_fields=False)
+    @classmethod
+    def sanitize_html(cls, v: str | None) -> str | None:
+        return html.escape(v) if isinstance(v, str) else v
+
 
 class InteractionLogCreate(BaseModel):
     # Accept both `text` and `message` in payloads.
@@ -36,6 +42,11 @@ class InteractionLogCreate(BaseModel):
     timestamp: dt.datetime | None = Field(default=None, validation_alias=AliasChoices("timestamp", "occurred_at"))
     metadata: dict | None = Field(default=None)
     raw_payload: dict | None = Field(default=None, description="Optional original payload for traceability")
+
+    @field_validator("text", "customer_id", "channel", "interaction_type", "session_id", mode="before", check_fields=False)
+    @classmethod
+    def sanitize_html(cls, v: str | None) -> str | None:
+        return html.escape(v) if isinstance(v, str) else v
 
 
 class InteractionOut(BaseModel):
@@ -72,6 +83,11 @@ class FeedbackUploadItem(BaseModel):
     timestamp: dt.datetime | None = Field(default=None, validation_alias=AliasChoices("timestamp", "occurred_at"))
     metadata: dict | None = Field(default=None)
     raw_payload: dict | None = Field(default=None)
+
+    @field_validator("text", "customer_id", "channel", "title", "source", "interaction_type", "session_id", mode="before", check_fields=False)
+    @classmethod
+    def sanitize_html(cls, v: str | None) -> str | None:
+        return html.escape(v) if isinstance(v, str) else v
 
 
 class FeedbackUploadRequest(BaseModel):
