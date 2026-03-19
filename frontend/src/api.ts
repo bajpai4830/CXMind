@@ -126,10 +126,10 @@ export function register(email: string, password: string, adminSecret?: string):
   });
 }
 
-export function login(email: string, password: string): Promise<TokenResponse> {
+export function login(email: string, password: string, requestedRole: string): Promise<TokenResponse> {
   return jsonFetch<TokenResponse>("/api/v1/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password, requested_role: requestedRole })
   });
 }
 
@@ -161,4 +161,44 @@ export function getCxRiskOverview(): Promise<CxRiskOverview> {
 
 export function listRecommendations(limit = 20): Promise<Recommendation[]> {
   return jsonFetch<Recommendation[]>(`/api/v1/analytics/recommendations?limit=${encodeURIComponent(limit)}`);
+}
+
+export type UserItem = {
+  id: number;
+  email: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type AuditLogItem = {
+  id: number;
+  actor_email: string;
+  action: string;
+  target: string;
+  timestamp: string;
+};
+
+export function listUsers(limit: number = 25, offset: number = 0): Promise<{items: UserItem[], total: number}> {
+  return jsonFetch(`/api/v1/admin/users?limit=${limit}&offset=${offset}`);
+}
+
+export function updateUserRole(userId: number, role: string): Promise<void> {
+  return jsonFetch(`/api/v1/admin/users/${userId}/role`, { method: "PATCH", body: JSON.stringify({ role }) });
+}
+
+export function deactivateUser(userId: number): Promise<void> {
+  return jsonFetch(`/api/v1/admin/users/${userId}`, { method: "DELETE" });
+}
+
+export function listAuditLogs(limit: number = 50): Promise<AuditLogItem[]> {
+  return jsonFetch(`/api/v1/admin/audit-logs?limit=${limit}`);
+}
+
+export function getSystemJobs(): Promise<any[]> {
+  return jsonFetch(`/api/v1/admin/system-jobs`);
+}
+
+export function retrainTopicModel(): Promise<any> {
+  return jsonFetch(`/api/v1/admin/retrain-topic-model`, { method: "POST" });
 }

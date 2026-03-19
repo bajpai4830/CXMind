@@ -30,7 +30,7 @@ export default function Login() {
         await register(email, password, isAdminTab ? adminSecret : undefined);
         toast.success("Registration successful");
       }
-      await login(email, password);
+      await login(email, password, isAdminTab ? "admin" : "analyst");
       // Let the subsequent refetch log the user in context
       await refetchUser();
     } catch (err: any) {

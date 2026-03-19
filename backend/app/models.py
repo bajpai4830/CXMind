@@ -28,6 +28,32 @@ class Customer(Base):
     )
 
 
+class SystemJob(Base):
+    __tablename__ = "system_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    job_name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    status: Mapped[str] = mapped_column(String(32), default="idle")
+    last_run: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    triggered_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    actor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    action: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    target_string: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: dt.datetime.now(dt.timezone.utc),
+        index=True,
+    )
+
+
 class User(Base):
     __tablename__ = "users"
 
