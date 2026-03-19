@@ -19,13 +19,14 @@ from app.settings import settings
 def create_app() -> FastAPI:
     app = FastAPI(title="CXMind API", version="0.1.0")
 
-    # SQLite-only convenience (dev/tests). For Postgres, use Alembic migrations.
+    # SQLite-only convenience (dev/tests). Postgres ke liye Alembic migrations use karo.
     if settings.database_url.startswith("sqlite"):
         Base.metadata.create_all(bind=engine)
 
     origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
+        # Local dev me explicit origins best hain; empty aaya toh fallback "*" rahega.
         allow_origins=origins or ["*"],
         allow_credentials=True,
         allow_methods=["*"],

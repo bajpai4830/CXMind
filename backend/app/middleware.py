@@ -19,7 +19,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if not self.enabled:
             return response
 
-        # Minimal, broadly compatible security headers.
+        # Minimal security headers: prod-grade full suite nahi, but basics cover ho jaate hain.
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -45,10 +45,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._hits: dict[str, Deque[float]] = defaultdict(deque)
 
     def _client_key(self, request: Request) -> str:
+        # Simple key = client IP. Multi-proxy setups me X-Forwarded-For handle karna padega.
         host = request.client.host if request.client else "unknown"
         return host
 
     def _limit_for(self, path: str) -> int:
+        # Auth endpoints pe stricter limit, warna general limit.
         if path.startswith("/api/v1/auth/"):
             return self.auth_per_minute
         return self.per_minute

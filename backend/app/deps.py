@@ -24,6 +24,7 @@ class AuthUser:
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> AuthUser:
     if not settings.auth_enabled:
+        # Dev mode shortcut: auth off hai toh admin user treat karo (demo/quickstart ke liye).
         return AuthUser(id=0, email="dev@local", role="admin")
 
     try:
@@ -41,7 +42,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 def require_role(required_role: str):
     def _dep(user: AuthUser = Depends(get_current_user)) -> AuthUser:
-        # Simple RBAC: admin overrides everything.
+        # Simple RBAC: admin sab kuch kar sakta hai; warna exact role match chahiye.
         if user.role == "admin":
             return user
         if user.role != required_role:

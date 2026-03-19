@@ -27,7 +27,6 @@ build/
 *.db-wal
 *.db-shm
 .pytest_cache/
-backend/.pytest_cache/
+pytest-cache-files-*/
 backend/ml-models/
 backend/.tmp/
-pytest-cache-files-*/

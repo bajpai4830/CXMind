@@ -1,4 +1,4 @@
-﻿# CXMind
+# CXMind
 
 AI-powered Customer Experience (CX) Analytics Platform that unifies customer interactions across channels, analyzes sentiment and behavior using AI, and provides actionable insights to improve customer journeys.
 
@@ -53,7 +53,6 @@ This installs:
 - BERTopic (topic modeling)
 - psycopg2 (PostgreSQL driver)
 - Streamlit (dashboard)
-- pytest, httpx (testing)
 - Other dependencies from `backend/requirements.txt`
 
 ### 4) Set Up PostgreSQL Database
@@ -80,7 +79,6 @@ This installs:
   - `app/` - Main application code
     - `routers/` - API endpoints (analytics, interactions, journey, admin, health)
     - ML modules: sentiment analysis, topic modeling, clustering, etc.
-  - `tests/` - API tests using pytest
   - `ml-models/` - Trained ML models (e.g., topic model)
 - `frontend/` - React + TypeScript dashboard with Vite (optional)
   - Interactive charts for sentiment, topics, and customer journeys
@@ -159,7 +157,7 @@ Run backend tests:
 ```powershell
 cd backend
 .\.venv\Scripts\Activate.ps1
-pytest tests/
+python -m unittest discover -s tests -p "test_*.py" -q
 ```
 
 ## Deployment
