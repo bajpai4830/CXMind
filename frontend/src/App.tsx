@@ -156,24 +156,26 @@ export default function App() {
           {!token ? (
             <div className="authBox">
               <div className="authTitle">Sign in</div>
-              <div className="authRow">
-                <label className="field">
-                  <span className="fieldLabel">Email</span>
-                  <input value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@company.com" />
-                </label>
-                <label className="field">
-                  <span className="fieldLabel">Password</span>
-                  <input value={authPassword} type="password" onChange={(e) => setAuthPassword(e.target.value)} placeholder="••••••••" />
-                </label>
-              </div>
-              <div className="authActions">
-                <button className="btn btnPrimary" onClick={() => void onLogin("login")} disabled={authBusy || !backendOk}>
-                  Login
-                </button>
-                <button className="btn" onClick={() => void onLogin("register")} disabled={authBusy || !backendOk}>
-                  Register
-                </button>
-              </div>
+              <form onSubmit={(e) => { e.preventDefault(); void onLogin("login"); }}>
+                <div className="authRow">
+                  <label className="field">
+                    <span className="fieldLabel">Email</span>
+                    <input value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@company.com" />
+                  </label>
+                  <label className="field">
+                    <span className="fieldLabel">Password</span>
+                    <input value={authPassword} type="password" onChange={(e) => setAuthPassword(e.target.value)} placeholder="••••••••" />
+                  </label>
+                </div>
+                <div className="authActions">
+                  <button className="btn btnPrimary" type="submit" disabled={authBusy || !backendOk}>
+                    Login
+                  </button>
+                  <button className="btn" type="button" onClick={() => void onLogin("register")} disabled={authBusy || !backendOk}>
+                    Register
+                  </button>
+                </div>
+              </form>
               <div className="muted authHint">First registered user becomes <span className="mono">admin</span>.</div>
             </div>
           ) : null}
