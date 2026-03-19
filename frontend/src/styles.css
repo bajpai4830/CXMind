@@ -203,6 +203,36 @@ a {
   gap: 10px;
 }
 
+.authBox {
+  margin-top: 12px;
+  border: 1px solid rgba(116, 192, 252, 0.25);
+  background: rgba(116, 192, 252, 0.06);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.authTitle {
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.authRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.authActions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.authHint {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
 .fieldRow {
   display: flex;
   gap: 10px;
@@ -221,7 +251,8 @@ a {
 }
 
 select,
-textarea {
+textarea,
+input {
   width: 100%;
   border-radius: 14px;
   border: 1px solid var(--border);
@@ -341,6 +372,9 @@ textarea {
   .kpis {
     grid-template-columns: 1fr;
   }
+  .authRow {
+    grid-template-columns: 1fr;
+  }
   .fieldRow {
     flex-direction: column;
     align-items: stretch;
@@ -352,4 +386,3 @@ textarea {
     max-width: 320px;
   }
 }
-

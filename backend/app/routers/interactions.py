@@ -4,46 +4,65 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.deps import get_current_user
 from app.models import Interaction
-from app.schemas import InteractionCreate, InteractionOut
-from app.sentiment import score_text
-from app.topic_normalizer import normalize_topic
-from app.topic_keywords import keyword_topic
-from app.topic_cleaner import clean_topic
-from app.topic_clustering import predict_topic, get_topic_label
+from app.schemas import InteractionCreate, InteractionLogCreate, InteractionOut
+from app.services import customer_service, processing_service
 
-router = APIRouter(prefix="/api/v1", tags=["interactions"])
+router = APIRouter(prefix="/api/v1", tags=["interactions"], dependencies=[Depends(get_current_user)])
+
+
+def _create_interaction(payload: InteractionLogCreate, db: Session) -> Interaction:
+    customer_id = payload.customer_id.strip() if payload.customer_id else None
+    if customer_id:
+        customer_service.ensure_customer(db, customer_id)
+
+    row = Interaction(
+        customer_id=customer_id,
+        channel=payload.channel,
+        text=payload.text,
+        interaction_type=payload.interaction_type,
+        session_id=payload.session_id,
+        occurred_at=payload.timestamp,
+        metadata_=payload.metadata,
+        raw_payload=payload.raw_payload,
+        sentiment_compound=0.0,
+        sentiment_label="neutral",
+        topic=None,
+    )
+    db.add(row)
+    db.flush()  # allocate PK for result tables
+
+    processing_service.enrich_interaction(db, row)
+    return row
 
 
 @router.post("/interactions", response_model=InteractionOut)
 def create_interaction(payload: InteractionCreate, db: Session = Depends(get_db)) -> InteractionOut:
-
-    s = score_text(payload.text)
-
-    # First try keyword detection
-    topic = keyword_topic(payload.text)
-
-    if topic is None:
-        # fallback to BERTopic
-        topic_id = predict_topic(payload.text)
-        raw_topic = get_topic_label(topic_id)
-
-        topic = clean_topic(raw_topic, payload.text, s.label)
-        topic = normalize_topic(topic)
-
-    row = Interaction(
-        customer_id=payload.customer_id,
-        channel=payload.channel,
-        text=payload.text,
-        sentiment_compound=s.compound,
-        sentiment_label=s.label,
-        topic=topic
+    # Backward-compatible ingest endpoint (MVP).
+    row = _create_interaction(
+        InteractionLogCreate(
+            customer_id=payload.customer_id,
+            channel=payload.channel,
+            text=payload.text,
+            interaction_type=payload.interaction_type,
+            session_id=payload.session_id,
+            timestamp=payload.timestamp,
+            metadata=payload.metadata,
+            raw_payload=None,
+        ),
+        db,
     )
-
-    db.add(row)
     db.commit()
     db.refresh(row)
+    return row
 
+
+@router.post("/interactions/log", response_model=InteractionOut)
+def log_interaction(payload: InteractionLogCreate, db: Session = Depends(get_db)) -> InteractionOut:
+    row = _create_interaction(payload, db)
+    db.commit()
+    db.refresh(row)
     return row
 
 

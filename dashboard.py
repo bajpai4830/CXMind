@@ -6,6 +6,27 @@ import time
 
 API_BASE = "http://127.0.0.1:8000/api/v1"
 
+
+def api_headers() -> dict:
+    token = st.session_state.get("access_token")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
+def api_get(path: str, *, params: dict | None = None):
+    r = requests.get(f"{API_BASE}{path}", params=params, headers=api_headers(), timeout=10)
+    if r.status_code == 401:
+        raise RuntimeError("Unauthorized (login required)")
+    r.raise_for_status()
+    return r.json()
+
+
+def api_post(path: str, payload: dict):
+    r = requests.post(f"{API_BASE}{path}", json=payload, headers=api_headers(), timeout=10)
+    if r.status_code == 401:
+        raise RuntimeError("Unauthorized (login required)")
+    r.raise_for_status()
+    return r.json()
+
 st.set_page_config(
     page_title="CXMind AI Dashboard",
     page_icon="📊",
@@ -118,6 +139,33 @@ def detect_root_cause(topics):
 
 st.sidebar.title("⚙️ Dashboard Controls")
 
+st.sidebar.subheader("Auth")
+email = st.sidebar.text_input("Email", value=st.session_state.get("email", "admin@example.com"))
+password = st.sidebar.text_input("Password", type="password", value=st.session_state.get("password", "password123"))
+
+col_a, col_b = st.sidebar.columns(2)
+with col_a:
+    if st.button("Login"):
+        try:
+            out = api_post("/auth/login", {"email": email, "password": password})
+            st.session_state["access_token"] = out.get("access_token")
+            st.session_state["email"] = email
+            st.session_state["password"] = password
+            st.success("Logged in")
+        except Exception as e:
+            st.error(str(e))
+with col_b:
+    if st.button("Register"):
+        try:
+            api_post("/auth/register", {"email": email, "password": password})
+            out = api_post("/auth/login", {"email": email, "password": password})
+            st.session_state["access_token"] = out.get("access_token")
+            st.session_state["email"] = email
+            st.session_state["password"] = password
+            st.success("Registered + logged in")
+        except Exception as e:
+            st.error(str(e))
+
 refresh_rate = st.sidebar.slider(
     "Auto Refresh (seconds)",
     5, 60, 10
@@ -143,7 +191,7 @@ placeholder = st.empty()
 with placeholder.container():
 
     try:
-        summary = requests.get(f"{API_BASE}/analytics/summary").json()
+        summary = api_get("/analytics/summary")
     except:
         st.error("⚠ Backend not reachable")
         st.stop()
@@ -253,7 +301,7 @@ with placeholder.container():
 
     st.subheader("📌 Top Complaint Topics")
 
-    topics = requests.get(f"{API_BASE}/analytics/top-topics").json()
+    topics = api_get("/analytics/top-topics")
 
     df_topics = pd.DataFrame(topics)
     df_topics["topic"] = df_topics["topic"].apply(format_topic)
@@ -285,10 +333,7 @@ with placeholder.container():
 
         try:
 
-            journey = requests.get(
-                f"{API_BASE}/analytics/customer-journey",
-                params={"customer_id": customer_id}
-            ).json()
+            journey = api_get("/analytics/customer-journey", params={"customer_id": customer_id})
 
             if journey:
 
@@ -326,9 +371,7 @@ if show_feed:
 
     st.subheader("💬 Live Customer Interaction Stream")
 
-    interactions = requests.get(
-        f"{API_BASE}/interactions?limit=20"
-    ).json()
+    interactions = api_get("/interactions", params={"limit": 20})
 
     if interactions:
 

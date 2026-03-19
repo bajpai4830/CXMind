@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+import csv
+import io
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Interaction
+from app.deps import get_current_user
+from app.models import Interaction, Recommendation
 from app.schemas import AnalyticsSummary
 from app.customer_segmentation import segment_customers
 from app.cx_forecast import predict_cx_risk
-from app.customer_risk import calculate_customer_risk
+from app.services import risk_service
 
-router = APIRouter(prefix="/api/v1", tags=["analytics"])
+router = APIRouter(prefix="/api/v1", tags=["analytics"], dependencies=[Depends(get_current_user)])
 
 
 # ----------------------------------------------------
@@ -89,6 +94,11 @@ def top_topics(db: Session = Depends(get_db)):
     ]
 
 
+@router.get("/analytics/topics")
+def topics_alias(db: Session = Depends(get_db)):
+    return top_topics(db)
+
+
 # ----------------------------------------------------
 # SENTIMENT TREND OVER TIME
 # ----------------------------------------------------
@@ -123,29 +133,14 @@ def sentiment_trend(db: Session = Depends(get_db)):
 
 @router.get("/analytics/customer-risk/{customer_id}")
 def get_customer_risk(customer_id: str, db: Session = Depends(get_db)):
-
-    interactions = (
-        db.query(Interaction)
-        .filter(Interaction.customer_id == customer_id)
-        .order_by(Interaction.created_at.desc())
-        .all()
-    )
-
-    if not interactions:
-        return {
-            "customer_id": customer_id,
-            "total_interactions": 0,
-            "risk_score": 0,
-            "risk_level": "no_data"
-        }
-
-    risk = calculate_customer_risk(interactions)
-
+    features = risk_service.compute_customer_features(db, customer_id)
+    risk = risk_service.predict_risk(features)
     return {
         "customer_id": customer_id,
-        "total_interactions": len(interactions),
-        "risk_score": risk["risk_score"],
-        "risk_level": risk["risk_level"],
+        "features": features,
+        "risk_score": risk.risk_score,
+        "risk_level": risk.risk_level,
+        "model": risk.model_name,
     }
 
 
@@ -155,29 +150,66 @@ def get_customer_risk(customer_id: str, db: Session = Depends(get_db)):
 
 @router.get("/analytics/high-risk-customers")
 def high_risk_customers(db: Session = Depends(get_db)):
-
-    customers = db.query(Interaction.customer_id).distinct().all()
+    customers = (
+        db.query(Interaction.customer_id)
+        .filter(Interaction.customer_id.isnot(None))
+        .distinct()
+        .all()
+    )
 
     results = []
+    for (cid,) in customers:
+        if not cid:
+            continue
+        features = risk_service.compute_customer_features(db, cid)
+        risk = risk_service.predict_risk(features)
+        if risk.risk_level == "high":
+            results.append(
+                {
+                    "customer_id": cid,
+                    "risk_score": risk.risk_score,
+                    "risk_level": risk.risk_level,
+                    "total_interactions": int(features.get("total_interactions") or 0),
+                }
+            )
+
+    results.sort(key=lambda x: x["risk_score"], reverse=True)
+    return results
+
+
+@router.get("/analytics/cx-risk")
+def cx_risk_overview(db: Session = Depends(get_db)):
+    customers = (
+        db.query(Interaction.customer_id)
+        .filter(Interaction.customer_id.isnot(None))
+        .distinct()
+        .all()
+    )
+
+    by_level: dict[str, int] = {"high": 0, "medium": 0, "low": 0, "unknown": 0}
+    scored: list[dict] = []
 
     for (cid,) in customers:
-
-        interactions = (
-            db.query(Interaction)
-            .filter(Interaction.customer_id == cid)
-            .all()
+        if not cid:
+            continue
+        features = risk_service.compute_customer_features(db, cid)
+        risk = risk_service.predict_risk(features)
+        by_level[risk.risk_level] = by_level.get(risk.risk_level, 0) + 1
+        scored.append(
+            {
+                "customer_id": cid,
+                "risk_score": risk.risk_score,
+                "risk_level": risk.risk_level,
+                "total_interactions": int(features.get("total_interactions") or 0),
+            }
         )
 
-        risk = calculate_customer_risk(interactions)
-
-        if risk["risk_level"] == "high_risk":
-            results.append({
-                "customer_id": cid,
-                "risk_score": risk["risk_score"],
-                "total_interactions": len(interactions)
-            })
-
-    return results
+    scored.sort(key=lambda x: x["risk_score"], reverse=True)
+    return {
+        "by_level": by_level,
+        "top_at_risk": scored[:50],
+        "customers_scored": len(scored),
+    }
 
 @router.get("/analytics/cx-forecast")
 def cx_forecast(db: Session = Depends(get_db)):
@@ -208,3 +240,122 @@ def customer_journey(customer_id: str, db: Session = Depends(get_db)):
         })
 
     return journey
+
+
+@router.get("/analytics/recommendations")
+def list_recommendations(limit: int = 50, db: Session = Depends(get_db)):
+    limit = max(1, min(int(limit), 500))
+    rows = (
+        db.query(Recommendation)
+        .order_by(Recommendation.created_at.desc(), Recommendation.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "customer_id": r.customer_id,
+            "interaction_id": r.interaction_id,
+            "stage": r.stage,
+            "topic": r.topic,
+            "priority": r.priority,
+            "status": r.status,
+            "recommendation": r.recommendation,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]
+
+
+def _stream_csv(rows, header: list[str], row_fn):
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(header)
+    yield buf.getvalue()
+    buf.seek(0)
+    buf.truncate(0)
+
+    for r in rows:
+        w.writerow(row_fn(r))
+        yield buf.getvalue()
+        buf.seek(0)
+        buf.truncate(0)
+
+
+@router.get("/analytics/export/interactions.csv")
+def export_interactions_csv(limit: int = 1000, customer_id: str | None = None, db: Session = Depends(get_db)):
+    limit = max(1, min(int(limit), 10000))
+
+    q = db.query(Interaction).order_by(Interaction.created_at.desc(), Interaction.id.desc())
+    if customer_id:
+        q = q.filter(Interaction.customer_id == customer_id)
+    rows = q.limit(limit).all()
+
+    header = [
+        "id",
+        "customer_id",
+        "channel",
+        "interaction_type",
+        "session_id",
+        "occurred_at",
+        "sentiment_label",
+        "sentiment_compound",
+        "topic",
+        "text",
+        "created_at",
+    ]
+
+    return StreamingResponse(
+        _stream_csv(
+            rows,
+            header,
+            lambda r: [
+                r.id,
+                r.customer_id,
+                r.channel,
+                getattr(r, "interaction_type", None),
+                getattr(r, "session_id", None),
+                getattr(r, "occurred_at", None),
+                r.sentiment_label,
+                r.sentiment_compound,
+                r.topic,
+                r.text,
+                r.created_at,
+            ],
+        ),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=interactions.csv"},
+    )
+
+
+@router.get("/analytics/export/recommendations.csv")
+def export_recommendations_csv(limit: int = 1000, db: Session = Depends(get_db)):
+    limit = max(1, min(int(limit), 10000))
+    rows = (
+        db.query(Recommendation)
+        .order_by(Recommendation.created_at.desc(), Recommendation.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+    header = ["id", "customer_id", "interaction_id", "stage", "topic", "priority", "status", "recommendation", "created_at"]
+
+    return StreamingResponse(
+        _stream_csv(
+            rows,
+            header,
+            lambda r: [
+                r.id,
+                r.customer_id,
+                r.interaction_id,
+                r.stage,
+                r.topic,
+                r.priority,
+                r.status,
+                r.recommendation,
+                r.created_at,
+            ],
+        ),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=recommendations.csv"},
+    )

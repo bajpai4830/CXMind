@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { createInteraction, getSummary, listInteractions, type AnalyticsSummary, type Interaction } from "./api";
+import {
+  createInteraction,
+  getAuthToken,
+  getMe,
+  getSummary,
+  listInteractions,
+  login,
+  register,
+  setAuthToken,
+  type AnalyticsSummary,
+  type Interaction
+} from "./api";
 import KpiCard from "./components/KpiCard";
 import StatusPill from "./components/StatusPill";
 
@@ -20,6 +31,12 @@ export default function App() {
   const [recent, setRecent] = useState<Interaction[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const [token, setToken] = useState<string | null>(() => getAuthToken());
+  const [me, setMe] = useState<{ id: number; email: string; role: string } | null>(null);
+  const [authEmail, setAuthEmail] = useState("admin@example.com");
+  const [authPassword, setAuthPassword] = useState("password123");
+  const [authBusy, setAuthBusy] = useState(false);
+
   const [channel, setChannel] = useState("support_ticket");
   const [text, setText] = useState("");
 
@@ -30,11 +47,20 @@ export default function App() {
       await fetch("/health");
       setBackendOk(true);
 
-      const [s, r] = await Promise.all([getSummary(), listInteractions(25)]);
+      if (!token) {
+        setMe(null);
+        setSummary(null);
+        setRecent([]);
+        return;
+      }
+
+      const [who, s, r] = await Promise.all([getMe(), getSummary(), listInteractions(25)]);
+      setMe(who);
       setSummary(s);
       setRecent(r);
     } catch (e) {
       setBackendOk(false);
+      setMe(null);
       setSummary(null);
       setRecent([]);
       setError(e instanceof Error ? e.message : String(e));
@@ -43,7 +69,7 @@ export default function App() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [token]);
 
   const avgTone = useMemo(() => {
     const v = summary?.avg_sentiment_compound ?? 0;
@@ -64,6 +90,32 @@ export default function App() {
     }
   }
 
+  async function onLogin(mode: "login" | "register") {
+    setError(null);
+    setAuthBusy(true);
+    try {
+      if (mode === "register") {
+        await register(authEmail, authPassword);
+      }
+      const out = await login(authEmail, authPassword);
+      setAuthToken(out.access_token);
+      setToken(out.access_token);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  function onLogout() {
+    setAuthToken(null);
+    setToken(null);
+    setMe(null);
+    setSummary(null);
+    setRecent([]);
+    setError(null);
+  }
+
   return (
     <div className="page">
       <header className="topbar">
@@ -82,6 +134,12 @@ export default function App() {
           ) : (
             <StatusPill ok={false} text="Backend: DOWN" />
           )}
+          {token ? <StatusPill ok={true} text={`Signed in${me?.email ? `: ${me.email}` : ""}`} /> : <StatusPill ok={false} text="Auth: Required" />}
+          {token ? (
+            <button className="btn" onClick={onLogout}>
+              Logout
+            </button>
+          ) : null}
           <button className="btn" onClick={() => void refresh()}>
             Refresh
           </button>
@@ -95,9 +153,33 @@ export default function App() {
             Ingest multi-channel feedback, score sentiment, and surface friction hotspots. This MVP wires a thin slice:
             <span className="mono"> ingest → score → store → summarize</span>.
           </p>
+          {!token ? (
+            <div className="authBox">
+              <div className="authTitle">Sign in</div>
+              <div className="authRow">
+                <label className="field">
+                  <span className="fieldLabel">Email</span>
+                  <input value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@company.com" />
+                </label>
+                <label className="field">
+                  <span className="fieldLabel">Password</span>
+                  <input value={authPassword} type="password" onChange={(e) => setAuthPassword(e.target.value)} placeholder="••••••••" />
+                </label>
+              </div>
+              <div className="authActions">
+                <button className="btn btnPrimary" onClick={() => void onLogin("login")} disabled={authBusy || !backendOk}>
+                  Login
+                </button>
+                <button className="btn" onClick={() => void onLogin("register")} disabled={authBusy || !backendOk}>
+                  Register
+                </button>
+              </div>
+              <div className="muted authHint">First registered user becomes <span className="mono">admin</span>.</div>
+            </div>
+          ) : null}
           {error ? (
             <div className="error">
-              <div className="errorTitle">Backend not reachable</div>
+              <div className="errorTitle">Request failed</div>
               <div className="errorBody mono">{error}</div>
               <div className="errorHint muted">
                 Start the API on <span className="mono">http://localhost:8000</span> (see <span className="mono">backend/README.md</span>).
@@ -116,7 +198,7 @@ export default function App() {
                   <option value="app_review">App Review</option>
                 </select>
               </label>
-              <button className="btn btnPrimary" type="submit" disabled={!text.trim() || backendOk !== true}>
+              <button className="btn btnPrimary" type="submit" disabled={!text.trim() || backendOk !== true || !token}>
                 Ingest
               </button>
             </div>
@@ -144,11 +226,7 @@ export default function App() {
               value={summary ? fmtScore(summary.avg_sentiment_compound) : "—"}
               hint={summary ? `Tone: ${avgTone}` : undefined}
             />
-            <KpiCard
-              label="Top channel"
-              value={summary?.by_channel?.[0]?.channel ?? "—"}
-              hint={summary?.by_channel?.[0] ? `${summary.by_channel[0].count} events` : undefined}
-            />
+            <KpiCard label="Top channel" value={summary?.by_channel?.[0]?.channel ?? "—"} hint={summary?.by_channel?.[0] ? `${summary.by_channel[0].count} events` : undefined} />
           </div>
         </section>
 
@@ -220,7 +298,7 @@ export default function App() {
                 ) : (
                   <tr>
                     <td colSpan={5} className="muted">
-                      {backendOk === false ? "Backend is down." : "No interactions yet. Ingest one above or run the seed script."}
+                      {backendOk === false ? "Backend is down." : token ? "No interactions yet. Ingest one above or run the seed script." : "Login to view interactions."}
                     </td>
                   </tr>
                 )}
@@ -230,10 +308,7 @@ export default function App() {
         </section>
       </main>
 
-      <footer className="footer muted">
-        MVP: FastAPI + SQLite + VADER sentiment. Next: identity resolution, journey modeling, and predictive risk scoring.
-      </footer>
+      <footer className="footer muted">MVP: FastAPI + SQLite + sentiment/topic enrichment. Next: journey modeling and predictive risk scoring.</footer>
     </div>
   );
 }
-

@@ -40,6 +40,7 @@ CXMIND_DATABASE_URL=postgresql+psycopg2://postgres:YOUR_PASSWORD@localhost:5432/
 ### 3) Install Python Dependencies
 Create a virtual environment and install dependencies:
 ```powershell
+cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -53,7 +54,7 @@ This installs:
 - psycopg2 (PostgreSQL driver)
 - Streamlit (dashboard)
 - pytest, httpx (testing)
-- Other dependencies from backend/requirements.txt
+- Other dependencies from `backend/requirements.txt`
 
 ### 4) Set Up PostgreSQL Database
 Ensure PostgreSQL is running and create the database:
@@ -95,34 +96,51 @@ This installs:
 
 ## Quickstart
 
+### Option A) Docker (Recommended)
+```powershell
+docker compose up --build
+```
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000/docs`
+- Postgres: `localhost:5432`
+
+### Option B) Local (Python + Node)
 ### 1) Start Backend
 ```powershell
 cd backend
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
+
+### 1b) Create a user (Auth)
+The API requires a bearer token for most endpoints.
+- Register (first user becomes admin): `POST /api/v1/auth/register`
+- Login (get token): `POST /api/v1/auth/login`
 
 ### 2) Seed Sample Data
 In a new terminal:
 ```powershell
-cd data-pipeline
+cd backend
 .\.venv\Scripts\Activate.ps1
-python seed_data.py --count 200
+python ..\data-pipeline\seed_data.py --count 200
 ```
 
 ### 3) Train Topic Model
 After seeding data:
 ```powershell
-cd data-pipeline
+cd backend
 .\.venv\Scripts\Activate.ps1
-python train_topic.py
+python ..\data-pipeline\train_topic.py
 ```
 
 ### 4) Start Streamlit Dashboard
 In a new terminal:
 ```powershell
+cd backend
 .\.venv\Scripts\Activate.ps1
-streamlit run dashboard.py
+streamlit run ..\dashboard.py
 ```
 Open at `http://localhost:8501`
 
@@ -130,6 +148,7 @@ Open at `http://localhost:8501`
 In a new terminal:
 ```powershell
 cd frontend
+npm install
 npm run dev
 ```
 Open at `http://localhost:5173`
@@ -145,7 +164,7 @@ pytest tests/
 
 ## Deployment
 
-See `deployment/README.md` for deployment instructions (future implementation).
+See `deployment/README.md` for deployment details.
 
 ## API Documentation
 

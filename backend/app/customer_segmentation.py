@@ -1,11 +1,21 @@
-from sklearn.cluster import KMeans
-import pandas as pd
+try:  # optional dependency
+    import pandas as pd  # type: ignore
+except Exception:  # pragma: no cover
+    pd = None
+
+try:  # optional dependency
+    from sklearn.cluster import KMeans  # type: ignore
+except Exception:  # pragma: no cover
+    KMeans = None
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models import Interaction
 
 
 def segment_customers(db: Session):
+
+    if pd is None or KMeans is None:
+        return []
 
     rows = db.query(
         Interaction.customer_id,

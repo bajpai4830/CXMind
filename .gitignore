@@ -25,3 +25,5 @@ build/
 *.db
 backend/.pytest_cache/
 backend/ml-models/
+backend/.tmp/
+pytest-cache-files-*/
