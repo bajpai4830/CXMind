@@ -63,6 +63,7 @@ class JwtClaims:
     role: str
     exp: int
     iat: int
+    tv: int | None = None
     iss: str | None = None
 
 
@@ -84,12 +85,13 @@ def _jwt_ttl_seconds() -> int:
         return 60 * 60  # 1 hour
 
 
-def encode_access_token(*, user_id: int, role: str) -> tuple[str, int]:
+def encode_access_token(*, user_id: int, role: str, token_version: int) -> tuple[str, int]:
     now = int(dt.datetime.now(dt.timezone.utc).timestamp())
     ttl = _jwt_ttl_seconds()
     payload = {
         "sub": str(user_id),
         "role": role,
+        "tv": token_version,
         "iat": now,
         "exp": now + ttl,
         "iss": _jwt_issuer(),
@@ -135,6 +137,7 @@ def decode_access_token(token: str) -> JwtClaims:
             role=str(payload.get("role") or "analyst"),
             exp=exp,
             iat=int(payload.get("iat") or 0),
+            tv=int(payload.get("tv")) if payload.get("tv") is not None else None,
             iss=str(iss) if iss is not None else None,
         )
     except Exception as e:
@@ -160,7 +163,7 @@ def create_user(db: Session, *, email: str, password: str, role: str) -> User:
     if get_user_by_email(db, email) is not None:
         raise ValueError("email already registered")
 
-    row = User(email=email, password_hash=hash_password(password), role=role, is_active=True)
+    row = User(email=email, password_hash=hash_password(password), role=role, is_active=True, token_version=1)
     db.add(row)
     db.flush()
     return row

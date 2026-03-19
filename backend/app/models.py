@@ -44,7 +44,11 @@ class AuditLog(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     actor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     action: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    target_string: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    metadata_: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(256), nullable=True)
     
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
@@ -64,6 +68,7 @@ class User(Base):
 
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="analyst", index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),

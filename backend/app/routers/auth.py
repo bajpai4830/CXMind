@@ -30,8 +30,10 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> UserOut:
     return row
 
 
+from fastapi import Request
+
 @router.post("/login", response_model=TokenResponse)
-def login(payload: UserLogin, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
+def login(payload: UserLogin, request: Request, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.authenticate(db, email=payload.email, password=payload.password)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -39,11 +41,19 @@ def login(payload: UserLogin, response: Response, db: Session = Depends(get_db))
     if payload.requested_role and user.role != payload.requested_role:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Unauthorized: You do not have the '{payload.requested_role}' role.")
 
-    audit = AuditLog(actor_id=user.id, action="login", target_string=f"role={user.role}")
+    audit = AuditLog(
+        actor_id=user.id, 
+        action="login", 
+        target_id=user.id,
+        target_type="user",
+        metadata_={"role": user.role},
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
     db.add(audit)
     db.commit()
 
-    token, ttl = auth_service.encode_access_token(user_id=user.id, role=user.role)
+    token, ttl = auth_service.encode_access_token(user_id=user.id, role=user.role, token_version=user.token_version)
     
     response.set_cookie(
         key="cxmind_token",

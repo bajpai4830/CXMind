@@ -41,6 +41,9 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> AuthUse
     row = auth_service.get_user_by_id(db, user_id)
     if row is None or not row.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user")
+        
+    if claims.tv is not None and row.token_version != claims.tv:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
 
     return AuthUser(id=row.id, email=row.email, role=row.role)
 

@@ -1,5 +1,5 @@
 import datetime as dt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -29,36 +29,70 @@ def list_users(limit: int = 25, offset: int = 0, db: Session = Depends(get_db)):
     }
 
 @router.patch("/users/{user_id}/role")
-def update_user_role(user_id: int, payload: RoleUpdate, adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_user_role(user_id: int, payload: RoleUpdate, request: Request, adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
     if payload.role not in ["admin", "analyst"]:
         raise HTTPException(status_code=400, detail="Invalid role")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.id == adminer.id:
-        raise HTTPException(status_code=400, detail="Cannot change your own role")
+        
+    # Self-demotion guard
+    if user.id == adminer.id and payload.role != "admin":
+        raise HTTPException(status_code=403, detail="Cannot demote your own admin account.")
+        
+    # Assure at least one active admin remains if demoting an admin
+    if user.role == "admin" and payload.role != "admin":
+        active_admins = db.query(User).filter(User.role == "admin", User.is_active == True).count()
+        if active_admins <= 1:
+            raise HTTPException(status_code=403, detail="Cannot demote the last active admin.")
     
     old_role = user.role
     user.role = payload.role
     
-    audit = AuditLog(actor_id=adminer.id, action="update_role", target_string=f"user_id={user_id}, from={old_role}, to={payload.role}")
+    audit = AuditLog(
+        actor_id=adminer.id, 
+        action="update_role", 
+        target_id=user_id,
+        target_type="user",
+        metadata_={"from": old_role, "to": payload.role},
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
     db.add(audit)
     db.commit()
     return {"message": "Role updated"}
 
 @router.delete("/users/{user_id}")
-def deactivate_user(user_id: int, adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def deactivate_user(user_id: int, request: Request, adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+        
     if user.id == adminer.id:
-        raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
+        raise HTTPException(status_code=403, detail="Cannot deactivate yourself")
+
+    if user.role == "admin":
+        active_admins = db.query(User).filter(User.role == "admin", User.is_active == True).count()
+        if active_admins <= 1:
+            raise HTTPException(status_code=403, detail="Cannot deactivate the last active admin.")
 
     user.is_active = False
-    audit = AuditLog(actor_id=adminer.id, action="deactivate_user", target_string=f"user_id={user_id}")
+    
+    # Cascade invalidation to existing JWT cookies
+    user.token_version += 1
+    
+    audit = AuditLog(
+        actor_id=adminer.id, 
+        action="deactivate_user", 
+        target_id=user_id,
+        target_type="user",
+        metadata_={},
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
     db.add(audit)
     db.commit()
-    return {"message": "User deactivated"}
+    return {"message": "User deactivated and sessions revoked"}
 
 @router.get("/audit-logs")
 def list_audit_logs(limit: int = 50, db: Session = Depends(get_db)):
@@ -68,31 +102,41 @@ def list_audit_logs(limit: int = 50, db: Session = Depends(get_db)):
             "id": log.AuditLog.id,
             "actor_email": log.email or "System",
             "action": log.AuditLog.action,
-            "target": log.AuditLog.target_string,
-            "timestamp": log.AuditLog.created_at
+            "target": f"Type: {log.AuditLog.target_type} ID: {log.AuditLog.target_id}",
+            "timestamp": log.AuditLog.created_at,
+            "metadata": log.AuditLog.metadata_
         }
         for log in logs
     ]
 
 @router.post("/retrain-topic-model")
-def retrain_topic_model_endpoint(adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
-    job = db.query(SystemJob).filter(SystemJob.job_name == "retrain_topic_model").first()
-    if not job:
-        job = SystemJob(job_name="retrain_topic_model", status="idle")
-        db.add(job)
+def retrain_topic_model_endpoint(request: Request, adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        # DB-level atomic lock (SELECT FOR UPDATE) to conquer TOCTOU race conditions under multi-worker setups
+        job = db.query(SystemJob).filter(SystemJob.job_name == "retrain_topic_model").with_for_update(nowait=True).first()
+        if not job:
+            job = SystemJob(job_name="retrain_topic_model", status="idle")
+            db.add(job)
+            db.commit()
+            # Reacquire lock on newly established row
+            job = db.query(SystemJob).filter(SystemJob.job_name == "retrain_topic_model").with_for_update(nowait=True).first()
+
+        if job.status == "running":
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Job is currently running in the background.")
+
+        if job.last_run:
+            time_since_run = dt.datetime.now(dt.timezone.utc) - job.last_run.replace(tzinfo=dt.timezone.utc)
+            if time_since_run.total_seconds() < 1800:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=f"Cooldown active. Please wait {int(30 - time_since_run.total_seconds() / 60)} minutes.")
+
+        job.status = "running"
+        job.triggered_by = adminer.id
         db.commit()
-
-    if job.status == "running":
-        raise HTTPException(status_code=400, detail="Job is currently running in the background.")
-
-    if job.last_run:
-        time_since_run = dt.datetime.now(dt.timezone.utc) - job.last_run.replace(tzinfo=dt.timezone.utc)
-        if time_since_run.total_seconds() < 1800:
-            raise HTTPException(status_code=400, detail=f"Cooldown active. Please wait {int(30 - time_since_run.total_seconds() / 60)} minutes.")
-
-    job.status = "running"
-    job.triggered_by = adminer.id
-    db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Could not obtain lock. Job is already actively provisioning.")
 
     try:
         interactions = db.query(Interaction).all()
@@ -108,7 +152,15 @@ def retrain_topic_model_endpoint(adminer: AuthUser = Depends(get_current_user), 
         job.status = "idle"
         job.last_run = dt.datetime.now(dt.timezone.utc)
         
-        audit = AuditLog(actor_id=adminer.id, action="retrain_model", target_string=f"samples={len(texts)}")
+        audit = AuditLog(
+            actor_id=adminer.id, 
+            action="retrain_model", 
+            target_id=job.id,
+            target_type="job",
+            metadata_={"samples": len(texts)},
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        )
         db.add(audit)
         db.commit()
         
