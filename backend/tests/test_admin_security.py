@@ -19,9 +19,6 @@ def client():
     from app.main import create_app
     app = create_app()
     
-    from app.settings import settings
-    settings.auth_enabled = True
-    
     from app.db import Base, engine
     Base.metadata.create_all(bind=engine)
     
@@ -67,7 +64,10 @@ def test_deactivated_user_cookie_returns_401(client: TestClient):
     deact = client.delete(f"/api/v1/admin/users/{analyst_id}", headers={"Authorization": f"Bearer {admin_token}"})
     assert deact.status_code == 200
     
-    subsequent = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {analyst_token}"})
+    from app.main import create_app
+    client2 = TestClient(create_app(), cookies={"cxmind_token": analyst_token})
+    subsequent = client2.get("/api/v1/auth/me")
+    
     assert subsequent.status_code == 401
     assert "Invalid user" in subsequent.json()["detail"] or "Session revoked" in subsequent.json()["detail"]
 

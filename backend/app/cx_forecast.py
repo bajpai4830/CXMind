@@ -2,35 +2,30 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models import Interaction
 
+RISK_THRESHOLDS = [
+    (0.5, "high", "Customer dissatisfaction likely to increase"),
+    (0.3, "medium", "Potential CX decline detected"),
+    (-1.0, "low", "Customer experience stable")
+]
 
-def predict_cx_risk(db: Session):
-
+def predict_cx_risk(db: Session, org_id: int) -> dict[str, str]:
     recent_negative = (
         db.query(func.count(Interaction.id))
-        .filter(Interaction.sentiment_label == "negative")
-        .count()
+        .filter(Interaction.sentiment_label == "negative", Interaction.org_id == org_id)
+        .scalar() or 0
     )
 
-    total = db.query(func.count(Interaction.id)).scalar()
-
-    if total == 0:
+    total = db.query(func.count(Interaction.id)).filter(Interaction.org_id == org_id).scalar()
+    if not total:
         return {"risk": "unknown"}
 
     ratio = recent_negative / total
 
-    if ratio > 0.5:
-        return {
-            "risk_level": "high",
-            "prediction": "Customer dissatisfaction likely to increase"
-        }
-
-    if ratio > 0.3:
-        return {
-            "risk_level": "medium",
-            "prediction": "Potential CX decline detected"
-        }
-
-    return {
-        "risk_level": "low",
-        "prediction": "Customer experience stable"
-    }
+    for threshold, level, prediction in RISK_THRESHOLDS:
+        if ratio > threshold:
+            return {
+                "risk_level": level,
+                "prediction": prediction
+            }
+            
+    return {"risk": "unknown"}

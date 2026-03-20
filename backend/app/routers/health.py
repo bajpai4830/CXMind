@@ -5,21 +5,22 @@ import datetime as dt
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from app.db import engine
+from app.db import get_engine
 from app.schemas import HealthResponse
-from app.settings import settings
+from app.settings import get_settings
 
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health", response_model=HealthResponse)
 def health(details: bool = False) -> HealthResponse:
+    settings = get_settings()
     if not details:
         return HealthResponse()
 
     db_ok = False
     try:
-        with engine.connect() as conn:
+        with get_engine().connect() as conn:
             conn.execute(text("select 1"))
         db_ok = True
     except Exception:

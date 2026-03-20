@@ -88,6 +88,18 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
     ...(init?.headers as Record<string, string> | undefined)
   };
 
+  // Extract CSRF token from cookies
+  let csrfToken = "";
+  const match = document.cookie.match(new RegExp('(^| )cxmind_csrf=([^;]+)'));
+  if (match) {
+    csrfToken = match[2];
+  }
+
+  const method = init?.method?.toUpperCase() || "GET";
+  if (csrfToken && method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE") {
+    headers["X-CSRF-Token"] = csrfToken;
+  }
+
   const r = await fetch(path, {
     credentials: "include",
     headers,
@@ -101,7 +113,7 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function getSummary(): Promise<AnalyticsSummary> {
-  return jsonFetch<AnalyticsSummary>("/api/analytics/summary");
+  return jsonFetch<AnalyticsSummary>("/api/v1/analytics/summary");
 }
 
 export function listInteractions(limit = 25): Promise<Interaction[]> {
@@ -113,7 +125,7 @@ export function createInteraction(payload: {
   channel: string;
   text: string;
 }): Promise<Interaction> {
-  return jsonFetch<Interaction>("/api/interactions/log", {
+  return jsonFetch<Interaction>("/api/v1/interactions/log", {
     method: "POST",
     body: JSON.stringify({ customer_id: payload.customer_id, channel: payload.channel, message: payload.text })
   });
@@ -152,7 +164,7 @@ export function getTopTopics(): Promise<TopicCount[]> {
 }
 
 export function getJourneyOverview(): Promise<JourneyOverview> {
-  return jsonFetch<JourneyOverview>("/api/journey");
+  return jsonFetch<JourneyOverview>("/api/v1/journey");
 }
 
 export function getCxRiskOverview(): Promise<CxRiskOverview> {

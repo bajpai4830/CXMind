@@ -1,0 +1,23 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.5, pytest-8.3.4, pluggy-1.6.0
+rootdir: C:\Users\bajpa\OneDrive\Desktop\mini_project\backend
+plugins: anyio-4.12.1
+collected 4 items
+
+tests\test_admin_security.py ..F.                                        [100%]
+
+================================== FAILURES ===================================
+__________________ test_deactivated_user_cookie_returns_401 ___________________
+tests\test_admin_security.py:71: in test_deactivated_user_cookie_returns_401
+    assert subsequent.status_code == 401
+E   assert 200 == 401
+E    +  where 200 = <Response [200 OK]>.status_code
+============================== warnings summary ===============================
+tests/test_admin_security.py::test_double_fire_retrain_returns_400
+  C:\Users\bajpa\OneDrive\Desktop\mini_project\backend\.venv\Lib\site-packages\transformers\models\bert\tokenization_bert.py:104: DeprecationWarning: Deprecated in 0.9.0: WordPiece.__init__ will not create from files anymore, try `WordPiece.from_file` instead
+    self._tokenizer = Tokenizer(WordPiece(self._vocab, unk_token=str(unk_token)))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_admin_security.py::test_deactivated_user_cookie_returns_401
+=================== 1 failed, 3 passed, 1 warning in 31.05s ===================

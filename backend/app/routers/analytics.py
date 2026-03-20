@@ -3,14 +3,14 @@ from __future__ import annotations
 import csv
 import io
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user
-from app.models import Interaction, Recommendation
+from app.deps import get_current_user, AuthUser
+from app.models import Interaction, Recommendation, Customer
 from app.schemas import AnalyticsSummary
 from app.customer_segmentation import segment_customers
 from app.cx_forecast import predict_cx_risk
@@ -24,9 +24,9 @@ router = APIRouter(prefix="/api/v1", tags=["analytics"], dependencies=[Depends(g
 # ----------------------------------------------------
 
 @router.get("/analytics/summary", response_model=AnalyticsSummary)
-def analytics_summary(db: Session = Depends(get_db)) -> AnalyticsSummary:
-    total = int(db.query(func.count(Interaction.id)).scalar() or 0)
-    avg = float(db.query(func.avg(Interaction.sentiment_compound)).scalar() or 0.0)
+def analytics_summary(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)) -> AnalyticsSummary:
+    total = int(db.query(func.count(Interaction.id)).filter(Interaction.org_id == user.org_id).scalar() or 0)
+    avg = float(db.query(func.avg(Interaction.sentiment_compound)).filter(Interaction.org_id == user.org_id).scalar() or 0.0)
 
     by_channel_rows = (
         db.query(
@@ -34,6 +34,7 @@ def analytics_summary(db: Session = Depends(get_db)) -> AnalyticsSummary:
             func.count(Interaction.id).label("count"),
             func.avg(Interaction.sentiment_compound).label("avg_sentiment_compound"),
         )
+        .filter(Interaction.org_id == user.org_id)
         .group_by(Interaction.channel)
         .order_by(func.count(Interaction.id).desc())
         .all()
@@ -53,6 +54,7 @@ def analytics_summary(db: Session = Depends(get_db)) -> AnalyticsSummary:
             Interaction.sentiment_label.label("label"),
             func.count(Interaction.id).label("count"),
         )
+        .filter(Interaction.org_id == user.org_id)
         .group_by(Interaction.sentiment_label)
         .order_by(func.count(Interaction.id).desc())
         .all()
@@ -73,13 +75,13 @@ def analytics_summary(db: Session = Depends(get_db)) -> AnalyticsSummary:
 # ----------------------------------------------------
 
 @router.get("/analytics/top-topics")
-def top_topics(db: Session = Depends(get_db)):
-
+def top_topics(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     rows = (
         db.query(
             Interaction.topic,
             func.count(Interaction.id).label("count")
         )
+        .filter(Interaction.org_id == user.org_id)
         .group_by(Interaction.topic)
         .order_by(func.count(Interaction.id).desc())
         .all()
@@ -95,8 +97,8 @@ def top_topics(db: Session = Depends(get_db)):
 
 
 @router.get("/analytics/topics")
-def topics_alias(db: Session = Depends(get_db)):
-    return top_topics(db)
+def topics_alias(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    return top_topics(db, user)
 
 
 # ----------------------------------------------------
@@ -104,14 +106,14 @@ def topics_alias(db: Session = Depends(get_db)):
 # ----------------------------------------------------
 
 @router.get("/analytics/sentiment-trend")
-def sentiment_trend(db: Session = Depends(get_db)):
-
+def sentiment_trend(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     rows = (
         db.query(
             func.date(Interaction.created_at).label("date"),
             func.avg(Interaction.sentiment_compound).label("avg_sentiment"),
             func.count(Interaction.id).label("count")
         )
+        .filter(Interaction.org_id == user.org_id)
         .group_by(func.date(Interaction.created_at))
         .order_by(func.date(Interaction.created_at))
         .all()
@@ -132,7 +134,11 @@ def sentiment_trend(db: Session = Depends(get_db)):
 # ----------------------------------------------------
 
 @router.get("/analytics/customer-risk/{customer_id}")
-def get_customer_risk(customer_id: str, db: Session = Depends(get_db)):
+def get_customer_risk(customer_id: str, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    customer = db.query(Customer).filter(Customer.customer_id == customer_id, Customer.org_id == user.org_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
     features = risk_service.compute_customer_features(db, customer_id)
     risk = risk_service.predict_risk(features)
     return {
@@ -149,10 +155,10 @@ def get_customer_risk(customer_id: str, db: Session = Depends(get_db)):
 # ----------------------------------------------------
 
 @router.get("/analytics/high-risk-customers")
-def high_risk_customers(db: Session = Depends(get_db)):
+def high_risk_customers(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     customers = (
         db.query(Interaction.customer_id)
-        .filter(Interaction.customer_id.isnot(None))
+        .filter(Interaction.customer_id.isnot(None), Interaction.org_id == user.org_id)
         .distinct()
         .all()
     )
@@ -178,10 +184,10 @@ def high_risk_customers(db: Session = Depends(get_db)):
 
 
 @router.get("/analytics/cx-risk")
-def cx_risk_overview(db: Session = Depends(get_db)):
+def cx_risk_overview(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     customers = (
         db.query(Interaction.customer_id)
-        .filter(Interaction.customer_id.isnot(None))
+        .filter(Interaction.customer_id.isnot(None), Interaction.org_id == user.org_id)
         .distinct()
         .all()
     )
@@ -212,25 +218,27 @@ def cx_risk_overview(db: Session = Depends(get_db)):
     }
 
 @router.get("/analytics/cx-forecast")
-def cx_forecast(db: Session = Depends(get_db)):
-    return predict_cx_risk(db)
+def cx_forecast(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    return predict_cx_risk(db, user.org_id)
 
 @router.get("/analytics/customer-segments")
-def customer_segments(db: Session = Depends(get_db)):
-    return segment_customers(db)
+def customer_segments(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    return segment_customers(db, user.org_id)
 
 @router.get("/analytics/customer-journey")
-def customer_journey(customer_id: str, db: Session = Depends(get_db)):
+def customer_journey(customer_id: str, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    customer = db.query(Customer).filter(Customer.customer_id == customer_id, Customer.org_id == user.org_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
 
     interactions = (
         db.query(Interaction)
-        .filter(Interaction.customer_id == customer_id)
+        .filter(Interaction.customer_id == customer_id, Interaction.org_id == user.org_id)
         .order_by(Interaction.created_at.asc())
         .all()
     )
 
     journey = []
-
     for i in interactions:
         journey.append({
             "channel": i.channel,
@@ -243,10 +251,14 @@ def customer_journey(customer_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/analytics/recommendations")
-def list_recommendations(limit: int = 50, db: Session = Depends(get_db)):
+def list_recommendations(limit: int = 50, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     limit = max(1, min(int(limit), 500))
+    # Recommendations don't explicitly have org_id right now in models.py,
+    # but they map to interactions! Or we can join interactions.
     rows = (
         db.query(Recommendation)
+        .join(Interaction, Recommendation.interaction_id == Interaction.id)
+        .filter(Interaction.org_id == user.org_id)
         .order_by(Recommendation.created_at.desc(), Recommendation.id.desc())
         .limit(limit)
         .all()
@@ -283,10 +295,10 @@ def _stream_csv(rows, header: list[str], row_fn):
 
 
 @router.get("/analytics/export/interactions.csv")
-def export_interactions_csv(limit: int = 1000, customer_id: str | None = None, db: Session = Depends(get_db)):
+def export_interactions_csv(limit: int = 1000, customer_id: str | None = None, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     limit = max(1, min(int(limit), 10000))
 
-    q = db.query(Interaction).order_by(Interaction.created_at.desc(), Interaction.id.desc())
+    q = db.query(Interaction).filter(Interaction.org_id == user.org_id).order_by(Interaction.created_at.desc(), Interaction.id.desc())
     if customer_id:
         q = q.filter(Interaction.customer_id == customer_id)
     rows = q.limit(limit).all()
@@ -329,10 +341,12 @@ def export_interactions_csv(limit: int = 1000, customer_id: str | None = None, d
 
 
 @router.get("/analytics/export/recommendations.csv")
-def export_recommendations_csv(limit: int = 1000, db: Session = Depends(get_db)):
+def export_recommendations_csv(limit: int = 1000, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     limit = max(1, min(int(limit), 10000))
     rows = (
         db.query(Recommendation)
+        .join(Interaction, Recommendation.interaction_id == Interaction.id)
+        .filter(Interaction.org_id == user.org_id)
         .order_by(Recommendation.created_at.desc(), Recommendation.id.desc())
         .limit(limit)
         .all()

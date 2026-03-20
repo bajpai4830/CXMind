@@ -7,9 +7,10 @@ python-dotenv==1.0.1
 vaderSentiment==3.3.2
 alembic==1.13.3
 psycopg2-binary==2.9.9
-
-# Note: Legacy Streamlit dashboard removed. Using React frontend.
+slowapi==0.1.9
 pandas==2.2.3
 
-# dev/test
+# ML — torch is pre-installed as CPU-only in Dockerfile
+# bertopic will reuse it instead of pulling CUDA wheels
 bertopic==0.15.0
+apscheduler==3.10.4

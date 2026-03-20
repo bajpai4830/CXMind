@@ -12,7 +12,7 @@ from sqlalchemy import func
 from app.models import Interaction
 
 
-def segment_customers(db: Session):
+def segment_customers(db: Session, org_id: int):
 
     if pd is None or KMeans is None:
         return []
@@ -21,7 +21,7 @@ def segment_customers(db: Session):
         Interaction.customer_id,
         func.count(Interaction.id).label("interaction_count"),
         func.avg(Interaction.sentiment_compound).label("avg_sentiment")
-    ).group_by(Interaction.customer_id).all()
+    ).filter(Interaction.org_id == org_id).group_by(Interaction.customer_id).all()
 
     data = []
 

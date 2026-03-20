@@ -15,13 +15,13 @@ class HealthResponse(BaseModel):
 
 
 class InteractionCreate(BaseModel):
-    customer_id: str | None = Field(default=None, max_length=128)
-    channel: str = Field(..., min_length=1, max_length=64, examples=["support_ticket", "email", "social"])
+    customer_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-\.\@]+$")
+    channel: str = Field(..., min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$", examples=["support_ticket", "email", "social"])
     text: str = Field(..., min_length=1, max_length=5000)
 
     # Optional enrichment fields (multi-channel normalization)
-    interaction_type: str | None = Field(default=None, max_length=64, examples=["support_ticket", "email", "review"])
-    session_id: str | None = Field(default=None, max_length=128)
+    interaction_type: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$", examples=["support_ticket", "email", "review"])
+    session_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-\.]+$")
     timestamp: dt.datetime | None = Field(default=None, description="Event time at source system (UTC recommended)")
     metadata: dict | None = Field(default=None)
 
@@ -33,12 +33,12 @@ class InteractionCreate(BaseModel):
 
 class InteractionLogCreate(BaseModel):
     # Accept both `text` and `message` in payloads.
-    customer_id: str | None = Field(default=None, max_length=128)
-    channel: str = Field(..., min_length=1, max_length=64)
+    customer_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-\.\@]+$")
+    channel: str = Field(..., min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$")
     text: str = Field(..., min_length=1, max_length=5000, validation_alias=AliasChoices("text", "message"))
 
-    interaction_type: str | None = Field(default=None, max_length=64)
-    session_id: str | None = Field(default=None, max_length=128)
+    interaction_type: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$")
+    session_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-\.]+$")
     timestamp: dt.datetime | None = Field(default=None, validation_alias=AliasChoices("timestamp", "occurred_at"))
     metadata: dict | None = Field(default=None)
     raw_payload: dict | None = Field(default=None, description="Optional original payload for traceability")
@@ -70,16 +70,16 @@ class AnalyticsSummary(BaseModel):
 
 
 class FeedbackUploadItem(BaseModel):
-    customer_id: str | None = Field(default=None, max_length=128)
-    channel: str = Field(default="app_review", min_length=1, max_length=64)
+    customer_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-\.\@]+$")
+    channel: str = Field(default="app_review", min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$")
     text: str = Field(..., min_length=1, max_length=5000, validation_alias=AliasChoices("text", "message"))
 
     rating: int | None = Field(default=None, ge=1, le=5)
     title: str | None = Field(default=None, max_length=256)
-    source: str | None = Field(default=None, max_length=64)
+    source: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$")
 
-    interaction_type: str | None = Field(default="feedback", max_length=64)
-    session_id: str | None = Field(default=None, max_length=128)
+    interaction_type: str | None = Field(default="feedback", min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$")
+    session_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-\.]+$")
     timestamp: dt.datetime | None = Field(default=None, validation_alias=AliasChoices("timestamp", "occurred_at"))
     metadata: dict | None = Field(default=None)
     raw_payload: dict | None = Field(default=None)

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User
 from app.services import auth_service
-from app.settings import settings
+from app.settings import get_settings
 
 
 @dataclass(frozen=True)
@@ -16,12 +16,14 @@ class AuthUser:
     id: int
     email: str
     role: str
+    org_id: int
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> AuthUser:
+    settings = get_settings()
     if not settings.auth_enabled:
         # Dev mode shortcut: auth off hai toh admin user treat karo (demo/quickstart ke liye).
-        return AuthUser(id=0, email="dev@local", role="admin")
+        return AuthUser(id=0, email="dev@local", role="admin", org_id=1)
 
     token = request.cookies.get("cxmind_token")
     if not token:
@@ -45,7 +47,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> AuthUse
     if claims.tv is not None and row.token_version != claims.tv:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
 
-    return AuthUser(id=row.id, email=row.email, role=row.role)
+    return AuthUser(id=row.id, email=row.email, role=row.role, org_id=row.org_id)
 
 
 def require_role(required_role: str):
@@ -58,4 +60,3 @@ def require_role(required_role: str):
         return user
 
     return _dep
-

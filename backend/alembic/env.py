@@ -23,7 +23,8 @@ target_metadata = Base.metadata
 
 
 def _get_database_url() -> str:
-    return os.environ.get("CXMIND_DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+    from app.settings import get_settings
+    return get_settings().database_url
 
 
 def run_migrations_offline() -> None:

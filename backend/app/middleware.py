@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import time
 from collections import defaultdict, deque
 from typing import Deque
@@ -7,6 +8,52 @@ from typing import Deque
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse, Response
+
+
+class CsrfMiddleware(BaseHTTPMiddleware):
+    def __init__(
+        self,
+        app,
+        *,
+        enabled: bool = True,
+        auth_cookie_name: str = "cxmind_token",
+        token_cookie_name: str = "cxmind_csrf",
+        token_header_name: str = "X-CSRF-Token",
+    ) -> None:
+        super().__init__(app)
+        self.enabled = enabled
+        self.auth_cookie_name = auth_cookie_name
+        self.token_cookie_name = token_cookie_name
+        self.token_header_name = token_header_name
+
+        self._safe_methods = {"GET", "HEAD", "OPTIONS", "TRACE"}
+        self._exempt_paths = {"/api/v1/auth/login", "/api/v1/auth/register"}
+
+    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+        if not self.enabled:
+            return await call_next(request)
+
+        if request.method in self._safe_methods:
+            return await call_next(request)
+
+        if request.url.path in self._exempt_paths:
+            return await call_next(request)
+
+        # If the request is authenticated via an Authorization header, it is not subject to CSRF.
+        auth_header = request.headers.get("authorization") or ""
+        if auth_header.startswith("Bearer "):
+            return await call_next(request)
+
+        # Only enforce CSRF when cookie-based auth is in use.
+        if not request.cookies.get(self.auth_cookie_name):
+            return await call_next(request)
+
+        csrf_cookie = request.cookies.get(self.token_cookie_name) or ""
+        csrf_header = request.headers.get(self.token_header_name) or ""
+        if not csrf_cookie or not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header):
+            return JSONResponse({"detail": "CSRF token missing or invalid"}, status_code=403)
+
+        return await call_next(request)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -24,6 +71,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        response.headers.setdefault("Content-Security-Policy", "default-src 'self'")
         return response
 
 
@@ -43,6 +91,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.window_seconds = 60.0
 
         self._hits: dict[str, Deque[float]] = defaultdict(deque)
+        self._request_count = 0
 
     def _client_key(self, request: Request) -> str:
         # Simple key = client IP. Multi-proxy setups me X-Forwarded-For handle karna padega.
@@ -69,6 +118,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         key = self._client_key(request)
         now = time.time()
         limit = self._limit_for(path)
+
+        # Periodic garbage collection of empty deques to prevent memory leaks linearly growing with unique IPs
+        self._request_count += 1
+        if self._request_count % 1000 == 0:
+            empty_keys = []
+            for k, hits in list(self._hits.items()):
+                while hits and now - hits[0] > self.window_seconds:
+                    hits.popleft()
+                if not hits:
+                    empty_keys.append(k)
+            for k in empty_keys:
+                if k in self._hits and not self._hits[k]:
+                    del self._hits[k]
 
         q = self._hits[key]
         while q and now - q[0] > self.window_seconds:

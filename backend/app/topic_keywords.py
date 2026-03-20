@@ -1,41 +1,17 @@
-def keyword_topic(text: str):
+KEYWORD_RULES = {
+    "refund_request": ["refund", "money back", "return"],
+    "product_defect": ["broken", "damaged", "defective", "stopped working"],
+    "payment_problem": ["payment", "charged", "transaction", "bank"],
+    "technical_bug": ["app", "crash", "bug", "error", "login", "freeze"],
+    "support_delay": ["support", "reply", "response", "no reply", "no response", "emails", "contacted"],
+    "delivery_issue": ["delivery", "delivered", "shipment", "courier", "package", "parcel", "delay", "late", "arrive"]
+}
 
+def keyword_topic(text: str) -> str | None:
+    if not text:
+        return None
     t = text.lower()
-
-    if any(w in t for w in ["refund", "money back", "return"]):
-        return "refund_request"
-
-    if any(w in t for w in ["broken", "damaged", "defective", "stopped working"]):
-        return "product_defect"
-
-    if any(w in t for w in ["payment", "charged", "transaction", "bank"]):
-        return "payment_problem"
-
-    if any(w in t for w in ["app", "crash", "bug", "error", "login", "freeze"]):
-        return "technical_bug"
-
-    if any(w in t for w in [
-        "support",
-        "reply",
-        "response",
-        "no reply",
-        "no response",
-        "emails",
-        "contacted"
-    ]):
-        return "support_delay"
-
-    if any(w in t for w in [
-        "delivery",
-        "delivered",
-        "shipment",
-        "courier",
-        "package",
-        "parcel",
-        "delay",
-        "late",
-        "arrive"
-    ]):
-        return "delivery_issue"
-
+    for topic, keywords in KEYWORD_RULES.items():
+        if any(w in t for w in keywords):
+            return topic
     return None

@@ -1,90 +1,49 @@
+CLEANING_OVERRIDES = {
+    "positive": {
+        "positive_feedback": ["excellent", "great", "fast", "good", "happy", "perfect"]
+    },
+    "any": {
+        "refund_request": ["refund", "return", "money back"],
+        "product_defect": ["broken", "damaged", "defective", "stopped working"],
+        "payment_problem": ["payment", "charged", "transaction", "bank"],
+        "technical_bug": ["app", "crash", "bug", "error", "login", "freeze"],
+        "support_delay": ["support", "reply", "response", "email", "emails", "contacted", "no reply", "no response", "nobody replied"]
+    },
+    "negative": {
+        "delivery_issue": ["delivery", "delivered", "shipment", "courier", "late", "delay", "delayed", "took forever"]
+    },
+    "fallback": {
+        "general_complaint": ["frustrating", "bad experience", "terrible", "disappointed", "unhappy"]
+    }
+}
+
 def clean_topic(raw_topic: str, text: str, sentiment_label: str) -> str:
-
-    t = text.lower()
-
+    t = (text or "").lower()
+    
+    # Priority 1: Delivery exception with 'but'
     if "but" in t and any(w in t for w in ["delivery", "delay", "late"]):
         return "delivery_issue"
-
-    # Positive sentiment overrides complaints
-    if sentiment_label == "positive":
-        if any(w in t for w in [
-            "excellent",
-            "great",
-            "fast",
-            "good",
-            "happy",
-            "perfect"
-        ]):
-            return "positive_feedback"
-
-    # Refund / return
-    if any(w in t for w in ["refund", "return", "money back"]):
-        return "refund_request"
-
-    # Product defect
-    if any(w in t for w in [
-        "broken",
-        "damaged",
-        "defective",
-        "stopped working"
-    ]):
-        return "product_defect"
-
-    # Payment issues
-    if any(w in t for w in [
-        "payment",
-        "charged",
-        "transaction",
-        "bank"
-    ]):
-        return "payment_problem"
-
-    # Technical issues
-    if any(w in t for w in [
-        "app",
-        "crash",
-        "bug",
-        "error",
-        "login",
-        "freeze"
-    ]):
-        return "technical_bug"
-
-    # Support issues
-    if any(w in t for w in [
-        "support",
-        "reply",
-        "response",
-        "email",
-        "emails",
-        "contacted",
-        "no reply",
-        "no response",
-        "nobody replied"
-    ]):
-        return "support_delay"
-
-    # Delivery issues (only if negative)
-    if sentiment_label == "negative":
-        if any(w in t for w in [
-            "delivery",
-            "delivered",
-            "shipment",
-            "courier",
-            "late",
-            "delay",
-            "delayed",
-            "took forever"
-        ]):
-            return "delivery_issue"
         
-    if any(w in t for w in [
-        "frustrating",
-        "bad experience",
-        "terrible",
-        "disappointed",
-        "unhappy"
-    ]):
-        return "general_complaint"
+    # Priority 2: Positive sentiment overrides
+    if sentiment_label == "positive":
+        for topic, keywords in CLEANING_OVERRIDES["positive"].items():
+            if any(w in t for w in keywords):
+                return topic
+
+    # Priority 3: General keyword matches (any sentiment)
+    for topic, keywords in CLEANING_OVERRIDES["any"].items():
+        if any(w in t for w in keywords):
+            return topic
+
+    # Priority 4: Negative sentiment specific matches
+    if sentiment_label == "negative":
+        for topic, keywords in CLEANING_OVERRIDES["negative"].items():
+            if any(w in t for w in keywords):
+                return topic
+                
+    # Priority 5: Fallback complaints
+    for topic, keywords in CLEANING_OVERRIDES["fallback"].items():
+        if any(w in t for w in keywords):
+            return topic
 
     return raw_topic

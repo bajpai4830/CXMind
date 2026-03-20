@@ -1,6 +1,5 @@
-from __future__ import annotations
-
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+import uuid
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -8,15 +7,28 @@ from app.db import get_db
 from app.deps import AuthUser, get_current_user
 from app.models import User, AuditLog
 from app.schemas import TokenResponse, UserLogin, UserOut, UserRegister
+from app.settings import get_settings
 from app.services import auth_service
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
+def _login_rate_limit() -> str:
+    return get_settings().rate_limit_login
+
+
+def _rate_limit_exempt() -> bool:
+    return not get_settings().rate_limit_enabled
+
+
 @router.post("/register", response_model=UserOut)
 def register(payload: UserRegister, db: Session = Depends(get_db)) -> UserOut:
-    from app.settings import settings
+    settings = get_settings()
     # Match admin_secret to grant admin role
     role = "admin" if payload.admin_secret and payload.admin_secret == settings.admin_secret else "analyst"
 
@@ -30,10 +42,9 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> UserOut:
     return row
 
 
-from fastapi import Request
-
 @router.post("/login", response_model=TokenResponse)
-def login(payload: UserLogin, request: Request, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
+@limiter.limit(_login_rate_limit, exempt_when=_rate_limit_exempt)
+def login(request: Request, payload: UserLogin, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.authenticate(db, email=payload.email, password=payload.password)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -63,16 +74,32 @@ def login(payload: UserLogin, request: Request, response: Response, db: Session 
         samesite="lax",
         secure=False,
     )
+    
+    # Generate CSRF token for Double-Submit Cookie pattern
+    csrf_token = str(uuid.uuid4())
+    # TRADE-OFF COMMENT: We use a Double-Submit Cookie pattern for CSRF protection. 
+    # The CSRF cookie is NOT HttpOnly so the JS frontend can read it and send it back as a header.
+    # WARNING: This means if there is an XSS vulnerability, an attacker can read this cookie 
+    # and forge requests. A stronger pattern would be a Synchronizer Token stored server-side.
+    response.set_cookie(
+        key="cxmind_csrf",
+        value=csrf_token,
+        max_age=ttl,
+        httponly=False,  # Needs to be readable by JS
+        samesite="lax",
+        secure=False,
+    )
+
     return TokenResponse(access_token=token, expires_in=ttl)
 
 
 @router.post("/logout")
 def logout(response: Response):
     response.delete_cookie("cxmind_token")
+    response.delete_cookie("cxmind_csrf")
     return {"detail": "Logged out"}
 
 
 @router.get("/me")
 def me(user: AuthUser = Depends(get_current_user)) -> dict:
     return {"id": user.id, "email": user.email, "role": user.role}
-

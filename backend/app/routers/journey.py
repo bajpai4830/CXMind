@@ -3,18 +3,22 @@ from sqlalchemy import asc, case, func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user
-from app.models import Interaction, JourneyEvent
+from app.deps import get_current_user, AuthUser
+from app.models import Interaction, JourneyEvent, Customer
 
 router = APIRouter(prefix="/api/v1", tags=["journey"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/customer-journey/{customer_id}")
-def customer_journey(customer_id: str, db: Session = Depends(get_db)):
+def customer_journey(customer_id: str, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    from fastapi import HTTPException
+    customer = db.query(Customer).filter(Customer.customer_id == customer_id, Customer.org_id == user.org_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
 
     interactions = (
         db.query(Interaction)
-        .filter(Interaction.customer_id == customer_id)
+        .filter(Interaction.customer_id == customer_id, Interaction.org_id == user.org_id)
         .order_by(asc(Interaction.created_at))
         .all()
     )
@@ -36,7 +40,7 @@ def customer_journey(customer_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/journey")
-def journey_overview(db: Session = Depends(get_db)):
+def journey_overview(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     rows = (
         db.query(
             JourneyEvent.stage.label("stage"),
@@ -45,6 +49,7 @@ def journey_overview(db: Session = Depends(get_db)):
             func.avg(Interaction.sentiment_compound).label("avg_sentiment"),
         )
         .join(Interaction, JourneyEvent.interaction_id == Interaction.id, isouter=True)
+        .filter(Interaction.org_id == user.org_id)
         .group_by(JourneyEvent.stage)
         .order_by(func.count(JourneyEvent.id).desc())
         .all()
