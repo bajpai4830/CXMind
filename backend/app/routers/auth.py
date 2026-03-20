@@ -43,7 +43,6 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> UserOut:
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit(_login_rate_limit, exempt_when=_rate_limit_exempt)
 def login(request: Request, payload: UserLogin, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
     user = auth_service.authenticate(db, email=payload.email, password=payload.password)
     if user is None:

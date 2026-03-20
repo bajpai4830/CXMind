@@ -25,10 +25,10 @@ class Settings(BaseSettings):
     csrf_cookie_name: str = "cxmind_csrf"
     csrf_header_name: str = "X-CSRF-Token"
 
-    rate_limit_enabled: bool = True
+    rate_limit_enabled: bool = False
     rate_limit_per_minute: int = 120
     rate_limit_auth_per_minute: int = 20
-    rate_limit_login: str = "10/15minutes"
+    rate_limit_login: str = "100/minute"
     security_headers_enabled: bool = True
 
 

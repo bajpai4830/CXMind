@@ -163,7 +163,7 @@ def create_user(db: Session, *, email: str, password: str, role: str) -> User:
     if get_user_by_email(db, email) is not None:
         raise ValueError("email already registered")
 
-    row = User(email=email, password_hash=hash_password(password), role=role, is_active=True, token_version=1)
+    row = User(email=email, password_hash=hash_password(password), role=role, is_active=True, token_version=1, org_id=1)
     db.add(row)
     db.flush()
     return row
