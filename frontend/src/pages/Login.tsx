@@ -77,7 +77,7 @@ export default function Login() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
+      transition: { duration: 0.5, type: "tween", ease: "easeOut" },
     },
   };
 
@@ -85,9 +85,9 @@ export default function Login() {
     <div className="loginPage">
       {/* Animated Background */}
       <motion.div className="loginBackground" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
-        <motion.div className="tealGlow" animate={{ x: [0, 30, 0], y: [0, 20, 0] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} />
-        <motion.div className="blueGlow" animate={{ x: [0, -30, 0], y: [0, -20, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }} />
-        <motion.div className="purpleGlow" animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
+        <motion.div className="tealGlow" animate={{ x: [0, 30, 0], y: [0, 20, 0] }} transition={{ duration: 12, repeat: Infinity, type: "tween", ease: "easeInOut" }} />
+        <motion.div className="blueGlow" animate={{ x: [0, -30, 0], y: [0, -20, 0] }} transition={{ duration: 14, repeat: Infinity, type: "tween", ease: "easeInOut" }} />
+        <motion.div className="purpleGlow" animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 10, repeat: Infinity, type: "tween", ease: "easeInOut" }} />
 
         {/* Animated Particles */}
         <div className="particleContainer">
@@ -103,6 +103,7 @@ export default function Login() {
               transition={{
                 duration: Math.random() * 8 + 8,
                 repeat: Infinity,
+                type: "tween",
                 ease: "linear",
               }}
             />
@@ -137,7 +138,7 @@ export default function Login() {
             <motion.div
               className="brandGroup"
               animate={{ y: [0, -5, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 3, repeat: Infinity, type: "tween", ease: "easeInOut" }}
             >
               <motion.div
                 className="brandMark"
@@ -148,13 +149,13 @@ export default function Login() {
                     "0 0 20px rgba(45, 212, 191, 0.3)",
                   ],
                 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 2, repeat: Infinity, type: "tween", ease: "easeInOut" }}
               />
               <motion.div
                 className="brandName large shimmerText"
                 initial={{ backgroundPosition: "0% 50%" }}
                 animate={{ backgroundPosition: "100% 50%" }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 3, repeat: Infinity, type: "tween", ease: "easeInOut" }}
               >
                 CXMind
               </motion.div>
