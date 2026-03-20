@@ -9,7 +9,8 @@ alembic==1.13.3
 psycopg2-binary==2.9.9
 slowapi==0.1.9
 pandas==2.2.3
-
+pytest
+python-multipart
 # ML — torch is pre-installed as CPU-only in Dockerfile
 # bertopic will reuse it instead of pulling CUDA wheels
 bertopic==0.15.0
