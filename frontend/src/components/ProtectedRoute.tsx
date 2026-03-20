@@ -7,6 +7,10 @@ export function ProtectedRoute({ children, requiredRole }: { children: React.Rea
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
+  // TEMP: allow Builder visual editor access
+  if (import.meta.env.DEV) {
+    return <>{children}</>;
+  }
   if (isLoading) {
     return <DashboardSkeleton />;
   }

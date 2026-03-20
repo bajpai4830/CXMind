@@ -30,3 +30,5 @@ build/
 pytest-cache-files-*/
 backend/ml-models/
 backend/.tmp/
+
+.builder/config/data.json
