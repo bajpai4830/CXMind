@@ -5,12 +5,6 @@ import re
 import threading
 from dataclasses import dataclass
 
-try:
-    from transformers import pipeline as hf_pipeline  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    hf_pipeline = None
-
-
 _lock = threading.Lock()
 _pipe = None
 
@@ -71,8 +65,12 @@ def _load_transformer():
     global _pipe
     if _pipe is not None:
         return _pipe
-    if hf_pipeline is None:
+        
+    try:
+        from transformers import pipeline as hf_pipeline
+    except Exception:
         raise RuntimeError("transformers is not installed")
+        
     model = _get_model()
     with _lock:
         if _pipe is None:

@@ -4,12 +4,6 @@ import os
 import threading
 from dataclasses import dataclass
 
-try:
-    from transformers import pipeline as hf_pipeline  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    hf_pipeline = None
-
-
 _lock = threading.Lock()
 _zero_shot_pipe = None
 
@@ -52,8 +46,12 @@ def _load_zero_shot():
     global _zero_shot_pipe
     if _zero_shot_pipe is not None:
         return _zero_shot_pipe
-    if hf_pipeline is None:
+    
+    try:
+        from transformers import pipeline as hf_pipeline
+    except Exception:
         raise RuntimeError("transformers is not installed")
+        
     model_id = _get_model()
     local_only = not _allow_model_downloads()
     with _lock:
