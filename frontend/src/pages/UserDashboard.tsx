@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   createInteraction, 
+  uploadInteractionsCsv,
   listInteractions, 
   getSummary,
   getSentimentTrend,
@@ -22,6 +23,8 @@ export default function UserDashboard() {
   const [channel, setChannel] = useState("support_ticket");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvBusy, setCsvBusy] = useState(false);
   
   const [recent, setRecent] = useState<Interaction[]>([]);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
@@ -102,6 +105,26 @@ export default function UserDashboard() {
     }
   };
 
+  const onCsvUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!csvFile) {
+      toast.error("Please select a CSV file first");
+      return;
+    }
+
+    setCsvBusy(true);
+    try {
+      const result = await uploadInteractionsCsv(csvFile);
+      toast.success(`CSV uploaded. Processed: ${result.processed}, Failed: ${result.failed}`);
+      setCsvFile(null);
+      await fetchDashboardData({ keepCurrentData: true, notifyOnPartialFailure: false });
+    } catch (err: any) {
+      toast.error(err.message || "CSV upload failed. Please verify file format and try again.");
+    } finally {
+      setCsvBusy(false);
+    }
+  };
+
   if (loading && !summary && recent.length === 0) return <DashboardSkeleton />;
 
   return (
@@ -159,6 +182,32 @@ export default function UserDashboard() {
           <div className="formActions mt-2">
             <button type="submit" disabled={busy || !text.trim()} className="btn btnPrimary" style={{width: '100%'}}>
               {busy ? "Processing..." : "Analyze & Ingest"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Bulk Upload Form */}
+      <div className="glassPanel">
+        <div className="panelHeader">
+          <h2><Send size={18} style={{marginRight: '8px'}}/> Bulk Upload (CSV)</h2>
+          <p className="muted">Required columns: channel, message (customer_id is optional)</p>
+        </div>
+        <form onSubmit={onCsvUpload} className="ingestForm">
+          <label className="field">
+            <span className="fieldLabel">CSV File</span>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+            />
+          </label>
+          <div className="muted mono" style={{ fontSize: "0.8rem", whiteSpace: "pre-wrap", marginTop: "0.5rem" }}>
+            {"Example:\ncustomer_id,channel,message\n1,email,Service was slow\n2,app,Great experience"}
+          </div>
+          <div className="formActions mt-2">
+            <button type="submit" disabled={csvBusy || !csvFile} className="btn btnPrimary" style={{width: '100%'}}>
+              {csvBusy ? "Uploading..." : "Upload CSV"}
             </button>
           </div>
         </form>
@@ -230,7 +279,7 @@ export default function UserDashboard() {
             <tbody>
               {recent.map((r) => (
                 <tr key={r.id}>
-                  <td className="muted mono">{new Date(r.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                  <td className="muted mono">{new Date(r.occurred_at || r.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                   <td><span className="tag neutral">{r.channel}</span></td>
                   <td>{r.topic ? <span className="tag info">{r.topic}</span> : <span className="muted">-</span>}</td>
                   <td><span className={`tag tag-${r.sentiment_label}`}>{r.sentiment_label} ({(r.sentiment_compound).toFixed(2)})</span></td>

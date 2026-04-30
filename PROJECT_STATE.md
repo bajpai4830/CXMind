@@ -250,3 +250,14 @@ Yes. The current repository supports a credible MVP demo: authentication, intera
 - Consolidate ML architecture and clean documentation drift.
 - Harden operational paths (scheduler, model lifecycle, tenant consistency checks).
 
+---
+
+## 11. Recent Fixes (Data Consistency & Ordering)
+
+- **Query Ordering**: `GET /api/v1/interactions` is strictly ordered by `created_at DESC, id DESC` to guarantee stable retrieval of most recent records.
+- **CSV Timestamp Handling**:
+  - Uncoupled system ingestion time (`created_at`) from historical event time (`occurred_at`).
+  - Batch ingestion actively assigns decreasing microsecond timestamps per row to ensure the original CSV file top-down order translates exactly into latest-first DB retrieval.
+  - Pydantic models automatically serialize naive datetimes into UTC with `Z` timezone indicator, fixing visual timezone offset bugs (e.g. 5.5 hours IST discrepancy).
+- **Frontend Syncing**: UserDashboard seamlessly prioritizes `occurred_at || created_at` for correct visual timing while allowing records to dynamically appear at the top of the timeline upon upload.
+

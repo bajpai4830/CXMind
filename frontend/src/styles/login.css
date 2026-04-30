@@ -28,7 +28,7 @@
   width: 50vw;
   height: 50vw;
   background: radial-gradient(circle, rgba(45, 212, 191, 0.25) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(80px);
+  filter: none;
 }
 
 .blueGlow {
@@ -37,7 +37,7 @@
   width: 40vw;
   height: 40vw;
   background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(80px);
+  filter: none;
 }
 
 .purpleGlow {
@@ -46,24 +46,8 @@
   width: 60vw;
   height: 60vw;
   background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(100px);
+  filter: none;
   transform: translate(-50%, -50%);
-}
-
-.particleContainer {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.particle {
-  position: absolute;
-  width: 2px;
-  height: 2px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(45, 212, 191, 0.8) 0%, rgba(45, 212, 191, 0) 70%);
-  box-shadow: 0 0 6px rgba(45, 212, 191, 0.4);
 }
 
 .loginPageContainer {
@@ -72,15 +56,14 @@
   width: 100%;
   max-width: 500px;
   margin: auto;
-  perspective: 1200px;
+  perspective: none;
 }
 
 .loginBox {
   position: relative;
   width: 100%;
   padding: 48px;
-  transform-style: preserve-3d;
-  will-change: transform;
+  transform-style: flat;
 }
 
 .loginBox::before,
@@ -128,14 +111,6 @@
   font-size: 2rem;
 }
 
-.shimmerText {
-  background: linear-gradient(90deg, var(--text-main) 0%, var(--primary-teal) 50%, var(--text-main) 100%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
 .tabsContainer {
   margin-bottom: 32px;
 }
@@ -148,7 +123,7 @@
   border: 1px solid rgba(45, 212, 191, 0.1);
   border-radius: var(--radius-md);
   background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
+  backdrop-filter: none;
 }
 
 .tab {
@@ -164,7 +139,7 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .tab:hover:not(.active) {
@@ -224,7 +199,7 @@
   flex-shrink: 0;
   color: var(--text-muted);
   pointer-events: none;
-  transition: color 0.3s ease;
+  transition: color 0.2s ease;
 }
 
 .inputField {
@@ -232,8 +207,8 @@
   padding: 12px 14px 12px 44px;
   border-width: 1.5px;
   background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(8px);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .inputField::placeholder {
@@ -265,7 +240,7 @@
   padding: 4px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.3s ease;
+  transition: color 0.2s ease;
 }
 
 .eyeToggle:hover {
@@ -282,27 +257,12 @@
   overflow: hidden;
   padding: 14px 28px;
   border: none;
-  box-shadow: 0 0 30px rgba(45, 212, 191, 0.3);
-  transition: all 0.3s ease;
-}
-
-.loginBox .btnPrimary::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s ease;
-}
-
-.loginBox .btnPrimary:hover:not(:disabled)::before {
-  left: 100%;
+  box-shadow: none;
+  transition: background-color 0.2s ease;
 }
 
 .loginBox .btnPrimary:hover:not(:disabled) {
-  box-shadow: 0 0 40px rgba(45, 212, 191, 0.5);
+  box-shadow: none;
 }
 
 .loginBox .btnPrimary:disabled,
@@ -339,7 +299,7 @@
   color: var(--primary-teal);
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: color 0.2s ease;
 }
 
 .btnText:hover:not(:disabled) {

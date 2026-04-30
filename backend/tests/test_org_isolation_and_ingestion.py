@@ -50,7 +50,7 @@ def test_csv_upload_ingests_correctly(client: TestClient, register_user, login_u
 
     headers = auth_headers(login_response.json()["access_token"])
     csv_payload = io.BytesIO(
-        b"customer_id,channel,text\ncust-100,support_ticket,The delivery was delayed.\ncust-101,email,Great support experience.\n"
+        b"customer_id,channel,message\ncust-100,support_ticket,The delivery was delayed.\ncust-101,email,Great support experience.\n"
     )
 
     response = client.post(
@@ -59,13 +59,34 @@ def test_csv_upload_ingests_correctly(client: TestClient, register_user, login_u
         files={"file": ("interactions.csv", csv_payload, "text/csv")},
     )
     assert response.status_code == 200, response.text
-    assert response.json()["inserted"] == 2
+    assert response.json()["processed"] == 2
+    assert response.json()["failed"] == 0
 
     interactions = client.get("/api/v1/interactions?limit=10", headers=headers)
     assert interactions.status_code == 200, interactions.text
 
     texts = [row["text"] for row in interactions.json()]
-    assert texts == ["Great support experience.", "The delivery was delayed."]
+    assert texts == ["The delivery was delayed.", "Great support experience."]
+
+
+def test_csv_upload_fails_for_missing_required_columns(client: TestClient, register_user, login_user) -> None:
+    register_user("invalidcsv@example.com")
+    login_response = login_user("invalidcsv@example.com")
+    assert login_response.status_code == 200, login_response.text
+
+    headers = auth_headers(login_response.json()["access_token"])
+    csv_payload = io.BytesIO(
+        b"customer_id,channel,text\ncust-100,support_ticket,Missing required message column.\n"
+    )
+
+    response = client.post(
+        "/api/v1/ingestion/upload-csv",
+        headers=headers,
+        files={"file": ("invalid.csv", csv_payload, "text/csv")},
+    )
+
+    assert response.status_code == 400, response.text
+    assert "Missing required columns" in response.json()["detail"]
 
 
 def test_ingest_enrich_and_analytics_flow(client: TestClient, register_user, login_user) -> None:

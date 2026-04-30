@@ -5,8 +5,9 @@ from sqlalchemy import desc
 
 from app.db import get_db
 from app.deps import require_role, get_current_user, AuthUser
-from app.models import Interaction, User, AuditLog, SystemJob
+from app.models import Interaction, User, AuditLog, SystemJob, TopicResult
 from app.topic_clustering import train_topic_model
+from app.services import topic_service
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"], dependencies=[Depends(require_role("admin"))])
@@ -155,6 +156,21 @@ def retrain_topic_model_endpoint(request: Request, admin_user: AuthUser = Depend
             return {"status": "not enough data", "count": len(texts)}
 
         train_topic_model(texts)
+
+        # Re-classify existing interactions
+        for interaction in interactions:
+            topic = topic_service.detect_topic(interaction.text, sentiment_label=interaction.sentiment_label)
+            interaction.topic = topic.topic
+            topic_dim = topic_service.ensure_topic_dim(db, topic.topic)
+            db.add(
+                TopicResult(
+                    interaction_id=interaction.id,
+                    topic_id=topic_dim.id,
+                    model_name=topic.model_name,
+                    topic=topic.topic,
+                    confidence=topic.confidence,
+                )
+            )
 
         job.status = "idle"
         job.last_run = dt.datetime.now(dt.timezone.utc)

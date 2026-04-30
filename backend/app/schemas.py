@@ -58,6 +58,14 @@ class InteractionOut(BaseModel):
     sentiment_label: str
     topic: str | None
     created_at: dt.datetime
+    occurred_at: dt.datetime | None = None
+
+    @field_validator("created_at", "occurred_at", mode="after")
+    @classmethod
+    def ensure_timezone(cls, v: dt.datetime | None) -> dt.datetime | None:
+        if v is not None and v.tzinfo is None:
+            return v.replace(tzinfo=dt.timezone.utc)
+        return v
 
     model_config = {"from_attributes": True}
 

@@ -82,6 +82,11 @@ export type Recommendation = {
   created_at: string;
 };
 
+export type CsvUploadResult = {
+  processed: number;
+  failed: number;
+};
+
 const API_BASE_URL = resolveApiBaseUrl();
 
 function resolveApiBaseUrl(): string {
@@ -180,6 +185,15 @@ export function createInteraction(payload: {
   return jsonFetch<Interaction>("/api/v1/interactions", {
     method: "POST",
     body: JSON.stringify({ customer_id: payload.customer_id, channel: payload.channel, text: payload.text })
+  });
+}
+
+export function uploadInteractionsCsv(file: File): Promise<CsvUploadResult> {
+  const form = new FormData();
+  form.append("file", file);
+  return jsonFetch<CsvUploadResult>("/api/v1/ingestion/upload-csv", {
+    method: "POST",
+    body: form,
   });
 }
 
