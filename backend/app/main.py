@@ -75,6 +75,11 @@ def create_app() -> FastAPI:
     app.include_router(journey_router)
     app.include_router(compat_router)
     app.include_router(ingestion_router)
+
+    @app.get("/")
+    def root():
+        return {"message": "CXMind Backend API is running. Go to /docs for the API documentation.", "status": "ok"}
+
     return app
 
 

@@ -5,4 +5,4 @@ cd "$(dirname "$0")"
 alembic upgrade head
 
 # Start the web server
-gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-10000}
