@@ -6,12 +6,22 @@ from typing import List, Union
 from app.topic_keywords import keyword_topic
 
 # Optional ML imports (CI-safe)
-try:
-    from bertopic import BERTopic
-    from sentence_transformers import SentenceTransformer
-except ImportError:
-    BERTopic = None
-    SentenceTransformer = None
+# We load these lazily to prevent OOM
+BERTopic = None
+SentenceTransformer = None
+
+def _lazy_load_ml():
+    global BERTopic, SentenceTransformer
+    if BERTopic is None:
+        try:
+            import torch
+            torch.set_num_threads(1)
+            from bertopic import BERTopic as _BERTopic
+            from sentence_transformers import SentenceTransformer as _SentenceTransformer
+            BERTopic = _BERTopic
+            SentenceTransformer = _SentenceTransformer
+        except ImportError:
+            pass
 
 
 MODEL_DIR = Path("ml-models")
@@ -30,6 +40,7 @@ def _get_embedding_model():
     global _embedding_model
 
     if _embedding_model is None:
+        _lazy_load_ml()
         if SentenceTransformer is None:
             raise RuntimeError("sentence-transformers not installed")
         _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -40,6 +51,7 @@ def _get_embedding_model():
 def train_topic_model(texts: List[str]):
     """Train BERTopic model"""
 
+    _lazy_load_ml()
     if BERTopic is None:
         raise RuntimeError("BERTopic not installed")
 
@@ -69,6 +81,7 @@ def load_topic_model():
 
     if _topic_model is None:
 
+        _lazy_load_ml()
         if BERTopic is None:
             return None
 
@@ -141,3 +154,4 @@ def get_topic_label(topic_id: Union[int, str]) -> str:
 
     except Exception:
         return "general_feedback"
+

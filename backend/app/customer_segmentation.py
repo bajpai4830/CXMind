@@ -1,12 +1,3 @@
-try:  # optional dependency
-    import pandas as pd  # type: ignore
-except Exception:  # pragma: no cover
-    pd = None
-
-try:  # optional dependency
-    from sklearn.cluster import KMeans  # type: ignore
-except Exception:  # pragma: no cover
-    KMeans = None
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models import Interaction
@@ -14,7 +5,10 @@ from app.models import Interaction
 
 def segment_customers(db: Session, org_id: int):
 
-    if pd is None or KMeans is None:
+    try:
+        import pandas as pd
+        from sklearn.cluster import KMeans
+    except Exception:
         return []
 
     rows = db.query(

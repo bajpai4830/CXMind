@@ -5,20 +5,10 @@ import threading
 from dataclasses import dataclass
 
 
-try:
-    from transformers import pipeline as hf_pipeline  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    hf_pipeline = None
-
-try:
-    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    SentimentIntensityAnalyzer = None
-
-
 _lock = threading.Lock()
 _transformer_pipe = None
 _vader = None
+
 
 
 def _allow_model_downloads() -> bool:
@@ -46,7 +36,10 @@ def _load_transformer():
     global _transformer_pipe
     if _transformer_pipe is not None:
         return _transformer_pipe
-    if hf_pipeline is None:
+    
+    try:
+        from transformers import pipeline as hf_pipeline
+    except Exception:
         raise RuntimeError("transformers is not installed")
 
     model_id = _get_transformer_model()
@@ -71,8 +64,12 @@ def _load_vader():
     global _vader
     if _vader is not None:
         return _vader
-    if SentimentIntensityAnalyzer is None:
+    
+    try:
+        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+    except Exception:
         raise RuntimeError("vaderSentiment is not installed")
+
     with _lock:
         if _vader is None:
             _vader = SentimentIntensityAnalyzer()
