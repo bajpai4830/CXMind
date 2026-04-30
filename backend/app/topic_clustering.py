@@ -81,13 +81,13 @@ def load_topic_model():
 
     if _topic_model is None:
 
-        _lazy_load_ml()
-        if BERTopic is None:
-            return None
-
         # Avoid triggering model downloads in offline/test environments.
         # Only attempt to load embeddings/model if a trained model artifact exists.
         if not MODEL_PATH.exists():
+            return None
+
+        _lazy_load_ml()
+        if BERTopic is None:
             return None
 
         embedding_model = _get_embedding_model()
