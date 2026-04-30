@@ -1,4 +1,6 @@
 #!/bin/bash
+cd "$(dirname "$0")"
+
 # Run database migrations
 alembic upgrade head
 
