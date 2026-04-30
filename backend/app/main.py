@@ -38,16 +38,6 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
-        allow_credentials=settings.cors_allow_credentials,
-        allow_methods=settings.cors_allow_methods_list,
-        allow_headers=settings.cors_allow_headers_list,
-        expose_headers=settings.cors_expose_headers_list,
-        max_age=settings.cors_max_age,
-    )
-
-    app.add_middleware(
         RateLimitMiddleware,
         enabled=settings.rate_limit_enabled,
         per_minute=settings.rate_limit_per_minute,
@@ -64,6 +54,15 @@ def create_app() -> FastAPI:
         SecurityHeadersMiddleware,
         enabled=settings.security_headers_enabled,
         headers=settings.security_headers,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins_list,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=settings.cors_allow_methods_list,
+        allow_headers=settings.cors_allow_headers_list,
+        expose_headers=settings.cors_expose_headers_list,
+        max_age=settings.cors_max_age,
     )
 
     app.include_router(health_router)
