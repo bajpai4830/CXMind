@@ -60,9 +60,9 @@ class Settings(BaseSettings):
         "base-uri 'self'; "
         "frame-ancestors 'none'; "
         "object-src 'none'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data:; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https://fastapi.tiangolo.com; "
         "connect-src 'self'"
     )
     security_xss_protection: str = "1; mode=block"
