@@ -15,3 +15,4 @@ python-multipart
 # bertopic will reuse it instead of pulling CUDA wheels
 bertopic==0.15.0
 apscheduler==3.10.4
+gunicorn==21.2.0
