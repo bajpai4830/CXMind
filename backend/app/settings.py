@@ -11,6 +11,7 @@ _DEFAULT_CORS_ORIGINS = (
     "http://127.0.0.1:5173",
     "http://localhost:4173",
     "http://127.0.0.1:4173",
+    "https://cx-mind.vercel.app",
 )
 _DEFAULT_CORS_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 _DEFAULT_CORS_HEADERS = ("Authorization", "Content-Type", "X-CSRF-Token")
@@ -39,10 +40,10 @@ class Settings(BaseSettings):
     auth_enabled: bool = True
     admin_secret: str = "supersecret"
     auth_cookie_name: str = "cxmind_token"
-    cookie_secure: bool = False
-    cookie_samesite: str = "lax"
+    cookie_secure: bool = True
+    cookie_samesite: str = "none"
 
-    csrf_enabled: bool = True
+    csrf_enabled: bool = False
     csrf_cookie_name: str = "cxmind_csrf"
     csrf_header_name: str = "X-CSRF-Token"
 

@@ -14,7 +14,7 @@ def _allow_model_downloads() -> bool:
 
 def _get_backend() -> str:
     # auto|zero-shot|rules
-    return (os.environ.get("CXMIND_INTENT_BACKEND") or "auto").strip().lower()
+    return (os.environ.get("CXMIND_INTENT_BACKEND") or "rules").strip().lower()
 
 
 def _get_model() -> str:

@@ -17,7 +17,7 @@ def _allow_model_downloads() -> bool:
 
 def _get_sentiment_backend() -> str:
     # auto|transformer|vader
-    return (os.environ.get("CXMIND_SENTIMENT_BACKEND") or "auto").strip().lower()
+    return (os.environ.get("CXMIND_SENTIMENT_BACKEND") or "vader").strip().lower()
 
 
 def _get_transformer_model() -> str:
