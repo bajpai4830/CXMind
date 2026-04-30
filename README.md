@@ -11,7 +11,7 @@ Core outcomes:
 - Analyze sentiment and emerging themes automatically.
 - Protect tenant data with authentication, RBAC, and organization isolation.
 - Surface metrics and recent interactions in live dashboards.
-- Support future automation such as risk forecasting and scheduled reporting.
+- Provide baseline automation hooks for risk scoring and scheduled reporting.
 
 ## Feature List
 
@@ -46,7 +46,7 @@ Core outcomes:
 - `docs/`
   Architecture notes and supporting documentation.
 - `ml-models/`
-  Model artifacts and experimentation assets.
+  Reserved location for model artifacts (currently backend services contain most runtime ML logic).
 
 ### Backend Responsibilities
 

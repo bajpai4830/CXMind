@@ -1,25 +1,27 @@
-# Documentation & Research
+# Documentation
 
-## Contents
-This directory contains comprehensive documentation and research materials for CXMind.
+This folder contains implementation-facing documentation for the current CXMind codebase.
 
-## Documents
-- Architecture documentation
-- API specifications
-- Data schema documentation
-- Model documentation
-- Deployment guides
-- Research papers and references
+## Current Documents
 
-## Research Topics
-- Customer experience measurement
-- NLP and sentiment analysis
-- Predictive modeling for CX
-- Customer journey analytics
-- Industry best practices
+- `ARCHITECTURE_MVP.md`
+  - End-to-end system flow and currently implemented service boundaries.
+- `ML_RUNTIME_PATH.md`
+  - Canonical runtime ML inference path and auxiliary-module boundaries.
+- `../PROJECT_STATE.md`
+  - Code-verified implementation status, gaps, and prioritized next steps.
 
-## Coming Soon
-- Architecture diagrams
-- API documentation
-- Research findings
-- Case studies
+## Source of Truth
+
+When documentation and code disagree, treat code as source of truth:
+
+- Backend API routes: `backend/app/routers/`
+- Data models: `backend/app/models.py`
+- Frontend API integration: `frontend/src/api.ts`
+- Runtime deployment config: `docker-compose.yml`
+
+## Documentation Policy
+
+- Avoid "coming soon" sections unless linked to a tracked issue.
+- Mark planned work explicitly as **planned**.
+- Keep architecture notes aligned with the current runtime stack (PostgreSQL + FastAPI + React).

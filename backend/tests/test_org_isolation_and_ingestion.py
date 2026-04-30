@@ -5,6 +5,8 @@ import io
 from fastapi.testclient import TestClient
 
 from conftest import auth_headers
+from app.models import Interaction
+from app.services import risk_service
 
 
 def test_user_cannot_see_other_org_interactions(client: TestClient, register_user, login_user) -> None:
@@ -64,3 +66,71 @@ def test_csv_upload_ingests_correctly(client: TestClient, register_user, login_u
 
     texts = [row["text"] for row in interactions.json()]
     assert texts == ["Great support experience.", "The delivery was delayed."]
+
+
+def test_ingest_enrich_and_analytics_flow(client: TestClient, register_user, login_user) -> None:
+    register_user("flow@example.com")
+    login_response = login_user("flow@example.com")
+    assert login_response.status_code == 200, login_response.text
+
+    headers = auth_headers(login_response.json()["access_token"])
+
+    ingest = client.post(
+        "/api/v1/interactions",
+        json={"customer_id": "cust-flow-1", "channel": "support_ticket", "text": "I am upset about delayed delivery."},
+        headers=headers,
+    )
+    assert ingest.status_code == 200, ingest.text
+    payload = ingest.json()
+    assert payload["customer_id"] == "cust-flow-1"
+    assert payload["topic"] is not None
+    assert payload["sentiment_label"] in {"positive", "neutral", "negative"}
+
+    interactions = client.get("/api/v1/interactions?limit=10", headers=headers)
+    assert interactions.status_code == 200, interactions.text
+    rows = interactions.json()
+    assert len(rows) >= 1
+    assert rows[0]["text"] == "I am upset about delayed delivery."
+
+    summary = client.get("/api/v1/analytics/summary", headers=headers)
+    assert summary.status_code == 200, summary.text
+    assert int(summary.json()["total_interactions"]) >= 1
+
+    topics = client.get("/api/v1/analytics/topics", headers=headers)
+    assert topics.status_code == 200, topics.text
+    assert isinstance(topics.json(), list)
+    assert len(topics.json()) >= 1
+
+
+def test_risk_feature_computation_is_org_scoped(db_session) -> None:
+    db_session.add_all(
+        [
+            Interaction(
+                org_id=1,
+                customer_id="cust-shared-1",
+                channel="email",
+                text="Org A negative signal",
+                sentiment_label="negative",
+                sentiment_compound=-0.7,
+                topic="payment_problem",
+            ),
+            Interaction(
+                org_id=2,
+                customer_id="cust-shared-1",
+                channel="email",
+                text="Org B positive signal",
+                sentiment_label="positive",
+                sentiment_compound=0.8,
+                topic="general_feedback",
+            ),
+        ]
+    )
+    db_session.commit()
+
+    org_a = risk_service.compute_customer_features(db_session, "cust-shared-1", org_id=1)
+    org_b = risk_service.compute_customer_features(db_session, "cust-shared-1", org_id=2)
+    global_unscoped = risk_service.compute_customer_features(db_session, "cust-shared-1")
+
+    assert int(org_a["total_interactions"]) == 1
+    assert int(org_b["total_interactions"]) == 1
+    assert int(global_unscoped["total_interactions"]) == 2

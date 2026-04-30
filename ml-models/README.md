@@ -1,25 +1,28 @@
-# ML Models - NLP & Predictive Analytics
+# ML Models Directory
 
-## Overview
-Machine learning models for sentiment analysis, topic modeling, journey clustering, and CX prediction.
+## Current Status
 
-## Models
-1. **Sentiment Analysis** - Text sentiment classification
-2. **Emotion Detection** - Multi-class emotion classification
-3. **Intent Classification** - Customer intent recognition
-4. **Topic Modeling** - Automatic feedback categorization
-5. **Journey Clustering** - Customer journey segmentation
-6. **Churn Prediction** - Customer churn probability
-7. **Satisfaction Prediction** - Customer satisfaction forecasting
+This directory is reserved for model artifacts and related assets.
 
-## Tech Stack (To Be Defined)
-- TensorFlow / PyTorch
-- NLTK / spaCy for NLP
-- scikit-learn for traditional ML
-- Hugging Face Transformers
+At present, most production-facing NLP/ML logic is implemented in backend service modules under:
 
-## Coming Soon
-- Model architectures
-- Training pipelines
-- Evaluation metrics
-- Model serving setup
+- `backend/app/services/sentiment_service.py`
+- `backend/app/services/topic_service.py`
+- `backend/app/services/emotion_service.py`
+- `backend/app/services/intent_service.py`
+- `backend/app/services/risk_service.py`
+
+## What Is Implemented Today
+
+- Sentiment, topic, emotion, and intent inference integrated into backend ingestion flow.
+- Topic retrain trigger endpoint available through admin APIs.
+- Heuristic risk scoring and recommendation generation in backend services.
+
+## What Is Not Yet Implemented Here
+
+- No complete standalone model training/serving pipeline in `ml-models/`.
+- No committed, versioned model registry/artifact lifecycle in this directory.
+
+## Usage Note
+
+Treat backend service code as runtime source of truth until model lifecycle is formally moved into this directory.

@@ -21,39 +21,31 @@ def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
-def compute_customer_features(db: Session, customer_id: str) -> dict:
+def compute_customer_features(db: Session, customer_id: str, *, org_id: int | None = None) -> dict:
     # Features are deliberately simple and explainable; this can be replaced by a trained model.
-    total = int(
-        db.query(func.count(Interaction.id))
-        .filter(Interaction.customer_id == customer_id)
-        .scalar()
-        or 0
-    )
+    base_query = db.query(Interaction).filter(Interaction.customer_id == customer_id)
+    if org_id is not None:
+        base_query = base_query.filter(Interaction.org_id == org_id)
+
+    total = int(base_query.with_entities(func.count(Interaction.id)).scalar() or 0)
 
     if total == 0:
         return {"total_interactions": 0}
 
     negative = int(
-        db.query(func.count(Interaction.id))
-        .filter(Interaction.customer_id == customer_id)
-        .filter(Interaction.sentiment_label == "negative")
+        base_query.filter(Interaction.sentiment_label == "negative")
+        .with_entities(func.count(Interaction.id))
         .scalar()
         or 0
     )
 
-    avg_sent = float(
-        db.query(func.avg(Interaction.sentiment_compound))
-        .filter(Interaction.customer_id == customer_id)
-        .scalar()
-        or 0.0
-    )
+    avg_sent = float(base_query.with_entities(func.avg(Interaction.sentiment_compound)).scalar() or 0.0)
 
     # Topic counts for a few high-signal issues.
     def topic_count(topic: str) -> int:
         return int(
-            db.query(func.count(Interaction.id))
-            .filter(Interaction.customer_id == customer_id)
-            .filter(Interaction.topic == topic)
+            base_query.filter(Interaction.topic == topic)
+            .with_entities(func.count(Interaction.id))
             .scalar()
             or 0
         )
@@ -98,8 +90,8 @@ def predict_risk(features: dict) -> RiskScore:
     return RiskScore(risk_score=score, risk_level=level, model_name="heuristic:v1", features=features)
 
 
-def compute_and_store(db: Session, customer_id: str) -> RiskScore:
-    features = compute_customer_features(db, customer_id)
+def compute_and_store(db: Session, customer_id: str, *, org_id: int | None = None) -> RiskScore:
+    features = compute_customer_features(db, customer_id, org_id=org_id)
     risk = predict_risk(features)
     row = CxRiskPrediction(
         customer_id=customer_id,

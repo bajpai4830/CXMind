@@ -1,3 +1,11 @@
+"""
+Experimental embedding-based topic detector.
+
+This module is not part of the primary runtime inference path used by API ingestion.
+Canonical runtime topic flow is implemented in:
+`app/services/topic_service.py` -> `app/topic_clustering.py`.
+"""
+
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 import numpy as np

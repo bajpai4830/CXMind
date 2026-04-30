@@ -1,21 +1,23 @@
 # Data Pipeline - ETL & Data Processing
 
 ## Overview
-Data ingestion, transformation, and enrichment pipelines for multi-channel customer data.
+Current repository pipeline support is script-based and API-driven for local/demo workflows.
 
 ## Pipeline Components
-1. **Data Ingestion** - Connect to CRM, support systems, email, social media
-2. **Data Normalization** - Standardize heterogeneous data formats
-3. **Data Enrichment** - Add context and metadata
-4. **Identity Resolution** - Unified customer profiles
-5. **Quality Assurance** - Data validation and cleaning
-6. **Aggregation** - Prepare data for ML models
+1. **Seed Ingestion Script** - Generate synthetic interactions and POST to backend.
+2. **Topic Training Utility** - Local script support for topic-model related workflows.
 
-## Tech Stack (To Be Defined)
-- Apache Spark for large-scale processing
-- Apache Airflow for orchestration
-- Kafka for streaming data
-- Python for custom processors
+## Implemented Files
+
+- `seed_data.py`
+  - Generates synthetic examples and sends them to API endpoints.
+- `train_topic.py`
+  - Utility workflow for topic model training/retraining support.
+
+## Not Implemented in This Repo
+
+- No Spark/Airflow/Kafka orchestration pipeline.
+- No production ETL scheduler under `data-pipeline/`.
 
 ## MVP: Seed Script
 To generate synthetic interactions and POST them into the backend:

@@ -20,7 +20,7 @@ def get_customer_risk(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    features = risk_service.compute_customer_features(db, customer_id)
+    features = risk_service.compute_customer_features(db, customer_id, org_id=user.org_id)
     risk = risk_service.predict_risk(features)
     return {
         "customer_id": customer_id,
@@ -46,7 +46,7 @@ def high_risk_customers(
     for (customer_id,) in customers:
         if not customer_id:
             continue
-        features = risk_service.compute_customer_features(db, customer_id)
+        features = risk_service.compute_customer_features(db, customer_id, org_id=user.org_id)
         risk = risk_service.predict_risk(features)
         if risk.risk_level == "high":
             results.append(
@@ -79,7 +79,7 @@ def cx_risk_overview(
     for (customer_id,) in customers:
         if not customer_id:
             continue
-        features = risk_service.compute_customer_features(db, customer_id)
+        features = risk_service.compute_customer_features(db, customer_id, org_id=user.org_id)
         risk = risk_service.predict_risk(features)
         by_level[risk.risk_level] = by_level.get(risk.risk_level, 0) + 1
         scored.append(
