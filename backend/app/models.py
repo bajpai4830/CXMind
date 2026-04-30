@@ -1,3 +1,5 @@
+"""SQLAlchemy models for CXMind's multi-tenant analytics domain."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -8,7 +10,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 
 
+def _utcnow() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
+
+
 class Organization(Base):
+    """Represents a tenant workspace that owns users and customer data."""
+
     __tablename__ = "organizations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -17,12 +25,14 @@ class Organization(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class Customer(Base):
+    """Stores a customer profile scoped to an organization."""
+
     __tablename__ = "customers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -38,12 +48,14 @@ class Customer(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class SystemJob(Base):
+    """Tracks long-running or scheduled platform jobs."""
+
     __tablename__ = "system_jobs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -54,6 +66,8 @@ class SystemJob(Base):
 
 
 class AuditLog(Base):
+    """Captures security-sensitive and administrative actions."""
+
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -68,12 +82,14 @@ class AuditLog(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class User(Base):
+    """Represents an authenticated platform user."""
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -89,12 +105,14 @@ class User(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class Interaction(Base):
+    """Stores a normalized customer interaction for downstream analysis."""
+
     __tablename__ = "interactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -124,12 +142,14 @@ class Interaction(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class Feedback(Base):
+    """Stores explicit feedback metadata linked to an interaction."""
+
     __tablename__ = "feedback"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -147,12 +167,14 @@ class Feedback(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class SentimentResult(Base):
+    """Persists detailed sentiment model output for an interaction."""
+
     __tablename__ = "sentiment_results"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -171,12 +193,14 @@ class SentimentResult(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class EmotionResult(Base):
+    """Persists detailed emotion model output for an interaction."""
+
     __tablename__ = "emotion_results"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -194,12 +218,14 @@ class EmotionResult(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class IntentResult(Base):
+    """Persists detected intent scores for an interaction."""
+
     __tablename__ = "intent_results"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -217,12 +243,14 @@ class IntentResult(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class Topic(Base):
+    """Catalogs reusable topic labels assigned by topic modeling."""
+
     __tablename__ = "topics"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -231,12 +259,14 @@ class Topic(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class TopicResult(Base):
+    """Stores topic-model output for a single interaction."""
+
     __tablename__ = "topic_results"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -255,12 +285,14 @@ class TopicResult(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class JourneyEvent(Base):
+    """Records a derived stage transition in the customer journey."""
+
     __tablename__ = "journey_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -276,12 +308,14 @@ class JourneyEvent(Base):
     occurred_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class CxRiskPrediction(Base):
+    """Stores customer-level risk predictions generated by analytics jobs."""
+
     __tablename__ = "cx_risk_predictions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -295,12 +329,14 @@ class CxRiskPrediction(Base):
     as_of: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class Recommendation(Base):
+    """Stores recommended follow-up actions derived from analytics."""
+
     __tablename__ = "recommendations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -316,12 +352,14 @@ class Recommendation(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
 
 
 class Report(Base):
+    """Stores generated reporting snapshots for an organization."""
+
     __tablename__ = "reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -330,7 +368,7 @@ class Report(Base):
     generated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
+        default=_utcnow,
         index=True,
     )
     period_start: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)

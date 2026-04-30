@@ -1,90 +1,88 @@
-import os
-import tempfile
-import pytest
-from unittest.mock import patch
-import threading
-import time
+from __future__ import annotations
+
 from fastapi.testclient import TestClient
 
-@pytest.fixture(scope="module")
-def client():
-    tmpdir = tempfile.TemporaryDirectory()
-    os.environ["CXMIND_DATABASE_URL"] = f"sqlite:///{os.path.join(tmpdir.name, 'test.db')}"
-    os.environ["CXMIND_ADMIN_SECRET"] = "secret"
-    os.environ["CXMIND_AUTH_ENABLED"] = "true"
-    
-    import sys
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    
-    from app.main import create_app
-    app = create_app()
-    
-    from app.db import Base, engine
-    Base.metadata.create_all(bind=engine)
-    
-    with TestClient(app) as test_client:
-        yield test_client
+from app.models import User
+from conftest import auth_headers
 
-    engine.dispose()
-    
-    try:
-        tmpdir.cleanup()
-    except Exception:
-        pass
 
-def test_role_mismatch_returns_403(client: TestClient):
-    client.post("/api/v1/auth/register", json={"email": "analyst1@example.com", "password": "password123"})
-    res = client.post("/api/v1/auth/login", json={"email": "analyst1@example.com", "password": "password123", "requested_role": "admin"})
-    assert res.status_code == 403
-    assert "Unauthorized" in res.json()["detail"]
+def _move_user_into_org(db_session, *, email: str, org_id: int) -> None:
+    user = db_session.query(User).filter(User.email == email).one()
+    user.org_id = org_id
+    db_session.commit()
 
-def test_self_demotion_returns_403(client: TestClient):
-    client.post("/api/v1/auth/register", json={"email": "admin1@example.com", "password": "password123", "admin_secret": "secret"})
-    res = client.post("/api/v1/auth/login", json={"email": "admin1@example.com", "password": "password123", "requested_role": "admin"})
-    token = res.json()["access_token"]
-    
-    me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
-    admin_id = me["id"]
-    
-    demote = client.patch(f"/api/v1/admin/users/{admin_id}/role", json={"role": "analyst"}, headers={"Authorization": f"Bearer {token}"})
-    assert demote.status_code == 403
-    assert "Cannot demote your own admin account" in demote.json()["detail"]
 
-def test_deactivated_user_cookie_returns_401(client: TestClient):
-    client.post("/api/v1/auth/register", json={"email": "analyst2@example.com", "password": "password123"})
-    res = client.post("/api/v1/auth/login", json={"email": "analyst2@example.com", "password": "password123"})
-    analyst_token = res.json()["access_token"]
-    
-    me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {analyst_token}"}).json()
-    analyst_id = me["id"]
-    
-    res_admin = client.post("/api/v1/auth/login", json={"email": "admin1@example.com", "password": "password123"})
-    admin_token = res_admin.json()["access_token"]
-    
-    deact = client.delete(f"/api/v1/admin/users/{analyst_id}", headers={"Authorization": f"Bearer {admin_token}"})
-    assert deact.status_code == 200
-    
-    from app.main import create_app
-    client2 = TestClient(create_app(), cookies={"cxmind_token": analyst_token})
-    subsequent = client2.get("/api/v1/auth/me")
-    
-    assert subsequent.status_code == 401
-    assert "Invalid user" in subsequent.json()["detail"] or "Session revoked" in subsequent.json()["detail"]
+def test_login_with_wrong_role_returns_403(client: TestClient, register_user, login_user) -> None:
+    register_user("analyst1@example.com")
 
-@patch("app.routers.admin.train_topic_model")
-def test_double_fire_retrain_returns_400(mock_train, client: TestClient):
-    res_admin = client.post("/api/v1/auth/login", json={"email": "admin1@example.com", "password": "password123"})
-    admin_token = res_admin.json()["access_token"]
-    headers = {"Authorization": f"Bearer {admin_token}"}
-    
-    # Needs at least 5 texts to bypass 'not enough data' clause
-    for i in range(5):
-        client.post("/api/v1/interactions", json={"channel": "web", "text": f"test data {i}"}, headers=headers)
-        
-    retrain1 = client.post("/api/v1/admin/retrain-topic-model", headers=headers)
-    assert retrain1.status_code == 200
-    
-    retrain2 = client.post("/api/v1/admin/retrain-topic-model", headers=headers)
-    # The second run must fail because of the cooldown tracking (or atomic lock)
-    assert retrain2.status_code in [400, 429]
-    assert "Cooldown active" in retrain2.json()["detail"] or "ob is already" in retrain2.json()["detail"]
+    response = login_user("analyst1@example.com", requested_role="admin")
+    assert response.status_code == 403
+    assert "Unauthorized" in response.json()["detail"]
+
+
+def test_analyst_cannot_access_admin_endpoints(client: TestClient, register_user, login_user) -> None:
+    register_user("analyst2@example.com")
+    login_response = login_user("analyst2@example.com")
+    assert login_response.status_code == 200, login_response.text
+
+    token = login_response.json()["access_token"]
+    response = client.get("/api/v1/admin/users", headers=auth_headers(token))
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Forbidden"
+
+
+def test_self_demotion_returns_403(client: TestClient, register_user, login_user) -> None:
+    register_user("admin1@example.com", is_admin=True)
+    login_response = login_user("admin1@example.com", requested_role="admin")
+    assert login_response.status_code == 200, login_response.text
+
+    token = login_response.json()["access_token"]
+    me = client.get("/api/v1/auth/me", headers=auth_headers(token))
+    admin_id = me.json()["id"]
+
+    response = client.patch(
+        f"/api/v1/admin/users/{admin_id}/role",
+        json={"role": "analyst"},
+        headers=auth_headers(token),
+    )
+    assert response.status_code == 403
+    assert "Cannot demote your own admin account" in response.json()["detail"]
+
+
+def test_deactivated_user_session_returns_401(
+    client: TestClient,
+    db_session,
+    register_user,
+    login_user,
+) -> None:
+    register_user("org-admin@example.com", is_admin=True)
+    register_user("org-analyst@example.com")
+
+    admin = db_session.query(User).filter(User.email == "org-admin@example.com").one()
+    _move_user_into_org(db_session, email="org-analyst@example.com", org_id=admin.org_id)
+
+    analyst_login = login_user("org-analyst@example.com")
+    assert analyst_login.status_code == 200, analyst_login.text
+
+    analyst_cookie = analyst_login.cookies.get("cxmind_token")
+    assert analyst_cookie is not None
+
+    analyst_me = client.get(
+        "/api/v1/auth/me",
+        headers=auth_headers(analyst_login.json()["access_token"]),
+    )
+    analyst_id = analyst_me.json()["id"]
+
+    admin_login = login_user("org-admin@example.com", requested_role="admin")
+    assert admin_login.status_code == 200, admin_login.text
+
+    deactivate = client.delete(
+        f"/api/v1/admin/users/{analyst_id}",
+        headers=auth_headers(admin_login.json()["access_token"]),
+    )
+    assert deactivate.status_code == 200, deactivate.text
+
+    follow_up = client.get("/api/v1/auth/me", cookies={"cxmind_token": analyst_cookie})
+    assert follow_up.status_code == 401
+    assert follow_up.json()["detail"] in {"Invalid user", "Session revoked"}

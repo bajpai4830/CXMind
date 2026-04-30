@@ -57,21 +57,19 @@ class CsrfMiddleware(BaseHTTPMiddleware):
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, *, enabled: bool = True) -> None:
+    def __init__(self, app, *, enabled: bool = True, headers: dict[str, str] | None = None) -> None:
         super().__init__(app)
         self.enabled = enabled
+        self.headers = dict(headers or {})
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
         response: Response = await call_next(request)
         if not self.enabled:
             return response
 
-        # Minimal security headers: prod-grade full suite nahi, but basics cover ho jaate hain.
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-        response.headers.setdefault("Content-Security-Policy", "default-src 'self'")
+        for header_name, header_value in self.headers.items():
+            if header_value:
+                response.headers.setdefault(header_name, header_value)
         return response
 
 

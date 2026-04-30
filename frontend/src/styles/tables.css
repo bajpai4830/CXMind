@@ -1,0 +1,59 @@
+.tableWrap {
+  overflow-x: auto;
+  padding: 0 24px 24px;
+}
+
+.table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-glass);
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.textTruncate {
+}
+
+.tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tag-positive,
+.tag.positive {
+  background: rgba(45, 212, 191, 0.15);
+  color: var(--primary-teal);
+}
+
+.tag-negative,
+.tag.negative {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.tag-neutral,
+.tag.neutral {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}

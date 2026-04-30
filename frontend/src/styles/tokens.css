@@ -1,0 +1,91 @@
+:root {
+  --bg-base: #020617;
+  --bg-glass: rgba(15, 23, 42, 0.6);
+  --bg-glass-hover: rgba(30, 41, 59, 0.7);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --primary-teal: #2dd4bf;
+  --primary-teal-hover: #14b8a6;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow-glow: 0 0 20px rgba(45, 212, 191, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.glassPanel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.tealText {
+  color: var(--primary-teal);
+}
+
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.mb-4 {
+  margin-bottom: 28px;
+}
+
+.loadingScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: var(--primary-teal);
+  letter-spacing: 0.1em;
+}
+
+.animatePulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}

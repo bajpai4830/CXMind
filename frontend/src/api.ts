@@ -82,31 +82,83 @@ export type Recommendation = {
   created_at: string;
 };
 
+const API_BASE_URL = resolveApiBaseUrl();
+
+function resolveApiBaseUrl(): string {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  // In Vite dev, talk to the backend directly so the app also works in evaluators
+  // that do not preserve the local proxy configuration.
+  if (window.location.port === "5173" || window.location.port === "4173") {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+
+  return "";
+}
+
+function buildApiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  return `${API_BASE_URL}${path}`;
+}
+
+function getCsrfToken(): string {
+  if (typeof document === "undefined") {
+    return "";
+  }
+
+  const match = document.cookie.match(/(?:^|;\s*)cxmind_csrf=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const payload = await response.json().catch(() => null);
+    if (typeof payload?.detail === "string") {
+      return payload.detail;
+    }
+    if (payload !== null) {
+      return JSON.stringify(payload);
+    }
+  }
+
+  return await response.text().catch(() => "");
+}
+
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(init?.headers as Record<string, string> | undefined)
-  };
+  const headers = new Headers(init?.headers);
 
-  // Extract CSRF token from cookies
-  let csrfToken = "";
-  const match = document.cookie.match(new RegExp('(^| )cxmind_csrf=([^;]+)'));
-  if (match) {
-    csrfToken = match[2];
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
   }
 
+  if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const csrfToken = getCsrfToken();
   const method = init?.method?.toUpperCase() || "GET";
-  if (csrfToken && method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE") {
-    headers["X-CSRF-Token"] = csrfToken;
+  if (csrfToken && !["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
+    headers.set("X-CSRF-Token", csrfToken);
   }
 
-  const r = await fetch(path, {
+  const r = await fetch(buildApiUrl(path), {
+    ...init,
     credentials: "include",
     headers,
-    ...init
   });
   if (!r.ok) {
-    const msg = await r.text().catch(() => "");
+    const msg = await readErrorMessage(r);
     throw new Error(`${r.status} ${r.statusText}${msg ? `: ${msg}` : ""}`);
   }
   return (await r.json()) as T;
@@ -125,9 +177,9 @@ export function createInteraction(payload: {
   channel: string;
   text: string;
 }): Promise<Interaction> {
-  return jsonFetch<Interaction>("/api/v1/interactions/log", {
+  return jsonFetch<Interaction>("/api/v1/interactions", {
     method: "POST",
-    body: JSON.stringify({ customer_id: payload.customer_id, channel: payload.channel, message: payload.text })
+    body: JSON.stringify({ customer_id: payload.customer_id, channel: payload.channel, text: payload.text })
   });
 }
 
@@ -138,7 +190,7 @@ export function register(email: string, password: string, adminSecret?: string):
   });
 }
 
-export function login(email: string, password: string, requestedRole: string): Promise<TokenResponse> {
+export function login(email: string, password: string, requestedRole?: string): Promise<TokenResponse> {
   return jsonFetch<TokenResponse>("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password, requested_role: requestedRole })

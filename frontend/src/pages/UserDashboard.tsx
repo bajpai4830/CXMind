@@ -10,16 +10,13 @@ import {
   SentimentTrendPoint,
   TopicCount
 } from "../api";
-import { Send, Clock, BarChart3, TrendingUp, PieChart } from "lucide-react";
+import { Send, Clock, BarChart3, TrendingUp } from "lucide-react";
 import toast from "react-hot-toast";
 import { DashboardSkeleton } from "../components/DashboardSkeleton";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar,
-  PieChart as RePieChart, Pie, Cell, Legend
+  BarChart, Bar, Legend
 } from "recharts";
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function UserDashboard() {
   const [channel, setChannel] = useState("support_ticket");
@@ -32,24 +29,56 @@ export default function UserDashboard() {
   const [topics, setTopics] = useState<TopicCount[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchDashboardData = async () => {
-    try {
+  const fetchDashboardData = async (options?: { keepCurrentData?: boolean; notifyOnPartialFailure?: boolean }) => {
+    const keepCurrentData = options?.keepCurrentData ?? false;
+    const notifyOnPartialFailure = options?.notifyOnPartialFailure ?? true;
+
+    if (!keepCurrentData) {
       setLoading(true);
-      const [recentData, sumData, trendData, topicData] = await Promise.all([
-        listInteractions(10),
-        getSummary(),
-        getSentimentTrend(),
-        getTopTopics()
-      ]);
-      setRecent(recentData);
-      setSummary(sumData);
-      setTrend(trendData);
-      setTopics(topicData);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to load dashboard data");
-    } finally {
-      setLoading(false);
     }
+
+    const results = await Promise.allSettled([
+      listInteractions(10),
+      getSummary(),
+      getSentimentTrend(),
+      getTopTopics(),
+    ]);
+
+    const [recentResult, summaryResult, trendResult, topicsResult] = results;
+    const failedSections: string[] = [];
+
+    if (recentResult.status === "fulfilled") {
+      setRecent(recentResult.value);
+    } else {
+      failedSections.push("recent interactions");
+    }
+
+    if (summaryResult.status === "fulfilled") {
+      setSummary(summaryResult.value);
+    } else {
+      failedSections.push("summary metrics");
+    }
+
+    if (trendResult.status === "fulfilled") {
+      setTrend(trendResult.value);
+    } else {
+      failedSections.push("sentiment trend");
+    }
+
+    if (topicsResult.status === "fulfilled") {
+      setTopics(topicsResult.value);
+    } else {
+      failedSections.push("top topics");
+    }
+
+    if (failedSections.length > 0 && notifyOnPartialFailure) {
+      const message = failedSections.length === results.length
+        ? "Failed to load dashboard data"
+        : `Some dashboard sections could not be refreshed: ${failedSections.join(", ")}`;
+      toast.error(message);
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -61,10 +90,11 @@ export default function UserDashboard() {
     if (!text.trim()) return;
     setBusy(true);
     try {
-      await createInteraction({ channel, text });
+      const created = await createInteraction({ channel, text });
       toast.success("Feedback ingested successfully");
       setText("");
-      await fetchDashboardData();
+      setRecent((current) => [created, ...current.filter((item) => item.id !== created.id)].slice(0, 10));
+      await fetchDashboardData({ keepCurrentData: true, notifyOnPartialFailure: false });
     } catch (err: any) {
       toast.error(err.message || "Failed to ingest");
     } finally {
@@ -72,7 +102,7 @@ export default function UserDashboard() {
     }
   };
 
-  if (loading && !summary) return <DashboardSkeleton />;
+  if (loading && !summary && recent.length === 0) return <DashboardSkeleton />;
 
   return (
     <div className="dashboardGrid">

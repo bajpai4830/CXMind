@@ -15,9 +15,16 @@ class RoleUpdate(BaseModel):
     role: str
 
 @router.get("/users")
-def list_users(limit: int = 25, offset: int = 0, db: Session = Depends(get_db)):
-    users = db.query(User).order_by(desc(User.created_at)).offset(offset).limit(limit).all()
-    total = db.query(User).count()
+def list_users(limit: int = 25, offset: int = 0, admin_user: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    users = (
+        db.query(User)
+        .filter(User.org_id == admin_user.org_id)
+        .order_by(desc(User.created_at))
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    total = db.query(User).filter(User.org_id == admin_user.org_id).count()
     return {
         "items": [
             {"id": u.id, "email": u.email, "role": u.role, "is_active": u.is_active, "created_at": u.created_at}
@@ -29,20 +36,20 @@ def list_users(limit: int = 25, offset: int = 0, db: Session = Depends(get_db)):
     }
 
 @router.patch("/users/{user_id}/role")
-def update_user_role(user_id: int, payload: RoleUpdate, request: Request, adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_user_role(user_id: int, payload: RoleUpdate, request: Request, admin_user: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
     if payload.role not in ["admin", "analyst"]:
         raise HTTPException(status_code=400, detail="Invalid role")
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == user_id, User.org_id == admin_user.org_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
     # Self-demotion guard
-    if user.id == adminer.id and payload.role != "admin":
+    if user.id == admin_user.id and payload.role != "admin":
         raise HTTPException(status_code=403, detail="Cannot demote your own admin account.")
         
     # Assure at least one active admin remains if demoting an admin
     if user.role == "admin" and payload.role != "admin":
-        active_admins = db.query(User).filter(User.role == "admin", User.is_active == True).count()
+        active_admins = db.query(User).filter(User.role == "admin", User.is_active == True, User.org_id == admin_user.org_id).count()
         if active_admins <= 1:
             raise HTTPException(status_code=403, detail="Cannot demote the last active admin.")
     
@@ -50,7 +57,7 @@ def update_user_role(user_id: int, payload: RoleUpdate, request: Request, admine
     user.role = payload.role
     
     audit = AuditLog(
-        actor_id=adminer.id, 
+        actor_id=admin_user.id, 
         action="update_role", 
         target_id=user_id,
         target_type="user",
@@ -63,16 +70,16 @@ def update_user_role(user_id: int, payload: RoleUpdate, request: Request, admine
     return {"message": "Role updated"}
 
 @router.delete("/users/{user_id}")
-def deactivate_user(user_id: int, request: Request, adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
+def deactivate_user(user_id: int, request: Request, admin_user: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id, User.org_id == admin_user.org_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    if user.id == adminer.id:
+    if user.id == admin_user.id:
         raise HTTPException(status_code=403, detail="Cannot deactivate yourself")
 
     if user.role == "admin":
-        active_admins = db.query(User).filter(User.role == "admin", User.is_active == True).count()
+        active_admins = db.query(User).filter(User.role == "admin", User.is_active == True, User.org_id == admin_user.org_id).count()
         if active_admins <= 1:
             raise HTTPException(status_code=403, detail="Cannot deactivate the last active admin.")
 
@@ -82,7 +89,7 @@ def deactivate_user(user_id: int, request: Request, adminer: AuthUser = Depends(
     user.token_version += 1
     
     audit = AuditLog(
-        actor_id=adminer.id, 
+        actor_id=admin_user.id, 
         action="deactivate_user", 
         target_id=user_id,
         target_type="user",
@@ -110,7 +117,7 @@ def list_audit_logs(limit: int = 50, db: Session = Depends(get_db)):
     ]
 
 @router.post("/retrain-topic-model")
-def retrain_topic_model_endpoint(request: Request, adminer: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def retrain_topic_model_endpoint(request: Request, admin_user: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         # DB-level atomic lock (SELECT FOR UPDATE) to conquer TOCTOU race conditions under multi-worker setups
         job = db.query(SystemJob).filter(SystemJob.job_name == "retrain_topic_model").with_for_update(nowait=True).first()
@@ -132,7 +139,7 @@ def retrain_topic_model_endpoint(request: Request, adminer: AuthUser = Depends(g
                 raise HTTPException(status_code=400, detail=f"Cooldown active. Please wait {int(30 - time_since_run.total_seconds() / 60)} minutes.")
 
         job.status = "running"
-        job.triggered_by = adminer.id
+        job.triggered_by = admin_user.id
         db.commit()
     except Exception as e:
         db.rollback()
@@ -153,7 +160,7 @@ def retrain_topic_model_endpoint(request: Request, adminer: AuthUser = Depends(g
         job.last_run = dt.datetime.now(dt.timezone.utc)
         
         audit = AuditLog(
-            actor_id=adminer.id, 
+            actor_id=admin_user.id, 
             action="retrain_model", 
             target_id=job.id,
             target_type="job",

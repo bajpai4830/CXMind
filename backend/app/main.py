@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = reset_settings()
-    engine = db.init_engine(settings.database_url)
+    db.init_engine(settings.database_url)
 
     app = FastAPI(title="CXMind API", version="0.1.0", lifespan=lifespan)
 
@@ -37,14 +37,14 @@ def create_app() -> FastAPI:
     app.state.limiter = auth.limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
-        # Local dev me explicit origins best hain; empty aaya toh fallback "*" rahega.
-        allow_origins=origins or ["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=settings.cors_origins_list,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=settings.cors_allow_methods_list,
+        allow_headers=settings.cors_allow_headers_list,
+        expose_headers=settings.cors_expose_headers_list,
+        max_age=settings.cors_max_age,
     )
 
     app.add_middleware(
@@ -56,10 +56,15 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CsrfMiddleware,
         enabled=settings.csrf_enabled,
+        auth_cookie_name=settings.auth_cookie_name,
         token_cookie_name=settings.csrf_cookie_name,
         token_header_name=settings.csrf_header_name,
     )
-    app.add_middleware(SecurityHeadersMiddleware, enabled=settings.security_headers_enabled)
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        enabled=settings.security_headers_enabled,
+        headers=settings.security_headers,
+    )
 
     app.include_router(health_router)
     app.include_router(auth_router)

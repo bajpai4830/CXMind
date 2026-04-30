@@ -1,68 +1,36 @@
 from __future__ import annotations
 
-import os
-import tempfile
-import unittest
-
 from fastapi.testclient import TestClient
 
-
-class ApiSmokeTests(unittest.TestCase):
-    def setUp(self) -> None:
-        # Har test run ke liye alag SQLite DB use kar rahe hain, taaki local/dev DB touch na ho.
-        self._tmpdir = tempfile.TemporaryDirectory()
-        db_path = os.path.join(self._tmpdir.name, "test.db")
-        os.environ["CXMIND_DATABASE_URL"] = f"sqlite:///{db_path}"
-
-        # Import after env set so Settings picks up the DB URL.
-        from app.main import create_app  # noqa: WPS433 (test-only import)
-
-        self.client = TestClient(create_app())
-
-    def tearDown(self) -> None:
-        self._tmpdir.cleanup()
-
-    def _register_and_login(self) -> str:
-        r = self.client.post(
-            "/api/v1/auth/register",
-            json={"email": "admin@example.com", "password": "password123"},
-        )
-        self.assertEqual(r.status_code, 200, r.text)
-
-        tok = self.client.post(
-            "/api/v1/auth/login",
-            json={"email": "admin@example.com", "password": "password123"},
-        )
-        self.assertEqual(tok.status_code, 200, tok.text)
-        return tok.json()["access_token"]
-
-    def test_health_ok(self) -> None:
-        r = self.client.get("/health")
-        self.assertEqual(r.status_code, 200, r.text)
-        body = r.json()
-        self.assertEqual(body.get("status"), "ok")
-
-    def test_auth_and_basic_flow(self) -> None:
-        token = self._register_and_login()
-        headers = {"Authorization": f"Bearer {token}"}
-
-        me = self.client.get("/api/v1/auth/me", headers=headers)
-        self.assertEqual(me.status_code, 200, me.text)
-        self.assertEqual(me.json()["email"], "admin@example.com")
-
-        ing = self.client.post(
-            "/api/v1/interactions",
-            json={"channel": "support_ticket", "text": "This is terrible, I'm upset."},
-            headers=headers,
-        )
-        self.assertEqual(ing.status_code, 200, ing.text)
-        self.assertEqual(ing.json()["channel"], "support_ticket")
-
-        s = self.client.get("/api/v1/analytics/summary", headers=headers)
-        self.assertEqual(s.status_code, 200, s.text)
-        self.assertGreaterEqual(int(s.json()["total_interactions"]), 1)
+from conftest import auth_headers
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_health_ok(client: TestClient) -> None:
+    response = client.get("/health")
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "ok"
 
+
+def test_auth_and_basic_flow(client: TestClient, register_user, login_user) -> None:
+    register_user("admin@example.com")
+    login_response = login_user("admin@example.com")
+    assert login_response.status_code == 200, login_response.text
+
+    token = login_response.json()["access_token"]
+    headers = auth_headers(token)
+
+    me = client.get("/api/v1/auth/me", headers=headers)
+    assert me.status_code == 200, me.text
+    assert me.json()["email"] == "admin@example.com"
+
+    ingest = client.post(
+        "/api/v1/interactions",
+        json={"channel": "support_ticket", "text": "This is terrible, I'm upset."},
+        headers=headers,
+    )
+    assert ingest.status_code == 200, ingest.text
+    assert ingest.json()["channel"] == "support_ticket"
+
+    summary = client.get("/api/v1/analytics/summary", headers=headers)
+    assert summary.status_code == 200, summary.text
+    assert int(summary.json()["total_interactions"]) >= 1

@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 import uuid
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import AuthUser, get_current_user
-from app.models import User, AuditLog
+from app.models import AuditLog
 from app.schemas import TokenResponse, UserLogin, UserOut, UserRegister
 from app.settings import get_settings
 from app.services import auth_service
@@ -44,6 +43,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> UserOut:
 
 @router.post("/login", response_model=TokenResponse)
 def login(request: Request, payload: UserLogin, response: Response, db: Session = Depends(get_db)) -> TokenResponse:
+    settings = get_settings()
     user = auth_service.authenticate(db, email=payload.email, password=payload.password)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -66,12 +66,12 @@ def login(request: Request, payload: UserLogin, response: Response, db: Session 
     token, ttl = auth_service.encode_access_token(user_id=user.id, role=user.role, token_version=user.token_version)
     
     response.set_cookie(
-        key="cxmind_token",
+        key=settings.auth_cookie_name,
         value=token,
         max_age=ttl,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite=settings.cookie_samesite,
+        secure=settings.cookie_secure,
     )
     
     # Generate CSRF token for Double-Submit Cookie pattern
@@ -81,12 +81,12 @@ def login(request: Request, payload: UserLogin, response: Response, db: Session 
     # WARNING: This means if there is an XSS vulnerability, an attacker can read this cookie 
     # and forge requests. A stronger pattern would be a Synchronizer Token stored server-side.
     response.set_cookie(
-        key="cxmind_csrf",
+        key=settings.csrf_cookie_name,
         value=csrf_token,
         max_age=ttl,
         httponly=False,  # Needs to be readable by JS
-        samesite="lax",
-        secure=False,
+        samesite=settings.cookie_samesite,
+        secure=settings.cookie_secure,
     )
 
     return TokenResponse(access_token=token, expires_in=ttl)
@@ -94,8 +94,9 @@ def login(request: Request, payload: UserLogin, response: Response, db: Session 
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("cxmind_token")
-    response.delete_cookie("cxmind_csrf")
+    settings = get_settings()
+    response.delete_cookie(settings.auth_cookie_name)
+    response.delete_cookie(settings.csrf_cookie_name)
     return {"detail": "Logged out"}
 
 

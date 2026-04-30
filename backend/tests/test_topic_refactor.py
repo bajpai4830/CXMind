@@ -1,3 +1,4 @@
+import os
 import unittest
 from app.topic_keywords import keyword_topic
 from app.topic_normalizer import normalize_topic
@@ -27,7 +28,7 @@ class TestTopicRefactor(unittest.TestCase):
 
 class TestAuthRefactor(unittest.TestCase):
     def test_password_not_stored_plaintext(self):
-        password = "plaintextpassword"
+        password = os.environ.get("TEST_PASSWORD", "testpassword123")
         hashed = hash_password(password)
         
         self.assertNotEqual(hashed, password)

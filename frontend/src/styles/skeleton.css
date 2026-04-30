@@ -1,0 +1,31 @@
+.skeletonContainer {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px;
+}
+
+.skeletonHeader {
+  width: 100%;
+  height: 80px;
+  border-radius: var(--radius-lg);
+}
+
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.skeletonCard {
+  height: 120px;
+  border-radius: var(--radius-lg);
+}
+
+.skeletonPanel {
+  height: 300px;
+  border-radius: var(--radius-lg);
+}

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user
+from app.deps import AuthUser, get_current_user
 from app.models import Feedback, Interaction
 from app.schemas import FeedbackUploadRequest, FeedbackUploadResponse
 from app.services import customer_service, processing_service
@@ -14,15 +14,20 @@ router = APIRouter(prefix="/api/v1", tags=["feedback"], dependencies=[Depends(ge
 
 
 @router.post("/feedback/upload", response_model=FeedbackUploadResponse)
-def upload_feedback(payload: FeedbackUploadRequest, db: Session = Depends(get_db)) -> FeedbackUploadResponse:
+def upload_feedback(
+    payload: FeedbackUploadRequest,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> FeedbackUploadResponse:
     inserted = 0
 
     for item in payload.items:
         customer_id = item.customer_id.strip() if item.customer_id else None
         if customer_id:
-            customer_service.ensure_customer(db, customer_id)
+            customer_service.ensure_customer(db, customer_id, user.org_id)
 
         interaction = Interaction(
+            org_id=user.org_id,
             customer_id=customer_id,
             channel=item.channel,
             text=item.text,

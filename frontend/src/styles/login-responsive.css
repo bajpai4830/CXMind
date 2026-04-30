@@ -1,0 +1,89 @@
+@media (max-width: 768px) {
+  .loginPageContainer {
+    max-width: 100%;
+    perspective: none;
+  }
+
+  .loginBox {
+    max-width: 100%;
+    padding: 32px 24px;
+  }
+
+  .brandName.large {
+    font-size: 1.6rem;
+  }
+
+  .inputField {
+    padding: 10px 12px 10px 40px;
+    font-size: 16px;
+  }
+
+  .inputIcon {
+    left: 12px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .eyeToggle {
+    right: 10px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .loginBox .btnPrimary {
+    padding: 12px 24px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .loginBox {
+    padding: 24px 16px;
+  }
+
+  .brandName.large {
+    font-size: 1.4rem;
+  }
+
+  .loginForm .fieldLabel {
+    font-size: 0.75rem;
+  }
+
+  .tab {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+
+  .tabIcon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .submitButtonContainer {
+    margin: 24px 0 20px;
+  }
+
+  .authToggle {
+    margin-top: 20px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .tealGlow,
+  .blueGlow,
+  .purpleGlow,
+  .particle {
+    animation: none !important;
+  }
+
+  .loginBox .brandMark {
+    box-shadow: 0 0 20px rgba(45, 212, 191, 0.4) !important;
+  }
+}

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.models import Organization, User
 
 
 PBKDF2_ALG = "sha256"
@@ -163,7 +163,19 @@ def create_user(db: Session, *, email: str, password: str, role: str) -> User:
     if get_user_by_email(db, email) is not None:
         raise ValueError("email already registered")
 
-    row = User(email=email, password_hash=hash_password(password), role=role, is_active=True, token_version=1, org_id=1)
+    org_name = f"{email.split('@', 1)[0]}'s Workspace"
+    organization = Organization(name=org_name)
+    db.add(organization)
+    db.flush()
+
+    row = User(
+        email=email,
+        password_hash=hash_password(password),
+        role=role,
+        is_active=True,
+        token_version=1,
+        org_id=organization.id,
+    )
     db.add(row)
     db.flush()
     return row
@@ -178,4 +190,3 @@ def authenticate(db: Session, *, email: str, password: str) -> User | None:
     if not verify_password(password, row.password_hash):
         return None
     return row
-
