@@ -42,11 +42,11 @@ Core outcomes:
 - `backend/`
   FastAPI application, SQLAlchemy models, auth, routers, and analytics services.
 - `data-pipeline/`
-  Demo and training scripts for seeding data and topic modeling.
+  Lightweight scripts for data seeding and topic model training.
 - `docs/`
   Architecture notes and supporting documentation.
 - `ml-models/`
-  Reserved location for model artifacts (currently backend services contain most runtime ML logic).
+  Reserved for model artifacts; runtime ML logic currently resides in backend services.
 
 ### Backend Responsibilities
 
@@ -263,30 +263,32 @@ npm run build
 
 ## Screenshots
 
-Add UI screenshots to `docs/screenshots/` and reference them here.
+### Login Screen
+![Login Screen](docs/login.jpeg)
 
-Suggested assets:
+### Analyst Dashboard
+![Analyst Dashboard](docs/analyst-dashboard.jpeg)
 
-- `docs/screenshots/login.png`
-- `docs/screenshots/analyst-dashboard.png`
-- `docs/screenshots/admin-dashboard.png`
-- `docs/screenshots/csv-ingestion.png`
+### Sentiment Trend & Charts
+![Sentiment Trend](docs/sentiment-trend.jpeg)
 
-Example section layout:
+## Current Limitations
 
-- Login screen
-- Analyst dashboard with real interaction data
-- Admin dashboard with user and audit controls
-- CSV ingestion workflow
+The following features are planned but not yet fully implemented:
+
+- **Real-time WebSocket updates** - Currently uses polling-based dashboard refresh
+- **Multi-language NLP support** - VADER and BERTopic are English-focused
+- **Advanced scheduler** - Reporting jobs are environment-gated and not enabled by default
+- **Customer segmentation dashboard** - Backend utilities exist but limited dashboard integration
+- **Full ML model pipelines** - `ml-models/` directory is reserved for future model artifacts
 
 ## Team Members
 
-Current repository contributors:
+Current repository collaborators:
 
-- Ishika Khera
-- bajpai4830
-
-Update this section with full names, roles, and contact details before submission if your final project team differs from the current git history.
+- [Ayush Bajpai](https://github.com/bajpai4830)
+- [Amit Kumar Kar](https://github.com/singham07)
+- [Ishika Khera](https://github.com/ishika2625)
 
 ## Additional Documentation
 
