@@ -34,6 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("cxmind_token");
+    }
     setUser(null);
   };
 

@@ -157,6 +157,11 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
     headers.set("X-CSRF-Token", csrfToken);
   }
 
+  const localToken = typeof window !== "undefined" ? localStorage.getItem("cxmind_token") : null;
+  if (localToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${localToken}`);
+  }
+
   const r = await fetch(buildApiUrl(path), {
     ...init,
     credentials: "include",

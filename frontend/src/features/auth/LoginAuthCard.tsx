@@ -81,7 +81,10 @@ export function LoginAuthCard({ onAuthenticated }: LoginAuthCardProps) {
         toast.success("Registration successful");
       }
 
-      await login(email, password, isAdminTab ? "admin" : undefined);
+      const res = await login(email, password, isAdminTab ? "admin" : undefined);
+      if (typeof window !== "undefined" && res.access_token) {
+        localStorage.setItem("cxmind_token", res.access_token);
+      }
       await onAuthenticated();
     } catch (error: any) {
       toast.error(error.message || "Authentication failed");
