@@ -93,13 +93,22 @@ async def ingest_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail="CSV file is empty")
 
     try:
-        decoded_csv = content.decode("utf-8")
+        # utf-8-sig automatically removes the Excel BOM if it exists
+        decoded_csv = content.decode("utf-8-sig")
     except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid file encoding. Please upload UTF-8 CSV.")
+        try:
+            # Fallback to Windows-1252 if Excel saved it weirdly
+            decoded_csv = content.decode("cp1252")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid file encoding. Please upload a standard CSV.")
 
     reader = csv.DictReader(io.StringIO(decoded_csv))
-    required_columns = {"channel", "message"}
+    if reader.fieldnames:
+        # Strip whitespace, BOMs, and make lowercase for all headers to be extremely forgiving
+        reader.fieldnames = [str(f).strip().lower() for f in reader.fieldnames]
+    
     actual_columns = set(reader.fieldnames or [])
+    required_columns = {"channel", "message"}
     missing_columns = sorted(required_columns - actual_columns)
     if missing_columns:
         raise HTTPException(
