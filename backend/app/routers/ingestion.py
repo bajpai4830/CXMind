@@ -70,43 +70,32 @@ def ingest_bulk_json(payload: list[InteractionCreate], db: Session = Depends(get
     return {"inserted": inserted_count}
 
 
+import codecs
+
 @router.post("/upload-csv")
-async def ingest_csv(file: UploadFile = File(...), db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
-    """Ingests a CSV file of interactions for the authenticated organization.
-
-    Args:
-        file: Uploaded CSV file containing interaction records.
-        db: Database session used to persist interactions.
-        user: Authenticated user context that supplies the tenant organization.
-
-    Returns:
-        dict[str, int]: The number of records inserted from the CSV file.
-
-    Raises:
-        HTTPException: If the uploaded file is not a UTF-8 encoded CSV.
-    """
+def ingest_csv(file: UploadFile = File(...), db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    """Ingests a CSV file of interactions for the authenticated organization."""
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files allowed")
 
-    content = await file.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="CSV file is empty")
-
-    try:
-        # utf-8-sig automatically removes the Excel BOM if it exists
-        decoded_csv = content.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        try:
-            # Fallback to Windows-1252 if Excel saved it weirdly
-            decoded_csv = content.decode("cp1252")
-        except UnicodeDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid file encoding. Please upload a standard CSV.")
-
-    reader = csv.DictReader(io.StringIO(decoded_csv))
-    if reader.fieldnames:
-        # Strip whitespace, BOMs, and make lowercase for all headers to be extremely forgiving
-        reader.fieldnames = [str(f).strip().lower() for f in reader.fieldnames]
+    # Read a small chunk to detect encoding
+    raw_header = file.file.read(4096)
+    file.file.seek(0)
     
+    encoding = "utf-8-sig"
+    try:
+        raw_header.decode("utf-8")
+    except UnicodeDecodeError:
+        encoding = "cp1252"
+
+    # Stream the file to prevent Out-Of-Memory (OOM) crashes on large CSVs
+    text_stream = codecs.iterdecode(file.file, encoding, errors="replace")
+    reader = csv.DictReader(text_stream)
+    
+    if reader.fieldnames:
+        # Strip whitespace, BOMs, and make lowercase for all headers
+        reader.fieldnames = [str(f).strip().lower() for f in reader.fieldnames]
+
     actual_columns = set(reader.fieldnames or [])
     required_columns = {"channel", "message"}
     missing_columns = sorted(required_columns - actual_columns)
@@ -140,7 +129,6 @@ async def ingest_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
             except ValueError:
                 pass
 
-        # If timestamp missing -> set current time
         if not occurred_at:
             occurred_at = _utcnow()
 
@@ -165,7 +153,6 @@ async def ingest_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
                 processing_service.enrich_interaction(db, interaction)
             processed_count += 1
         except Exception:
-            # Keep ingest resilient for real-world files: skip bad rows and continue.
             failed_count += 1
             continue
 
