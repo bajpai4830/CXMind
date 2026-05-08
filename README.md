@@ -107,7 +107,7 @@ Core outcomes:
 - Docker Desktop or Docker Engine + Docker Compose
 - Or for local development:
   Python 3.12 +
-  Node.js 22+
+  Node.js 22 +
   PostgreSQL 16+
 
 ## Setup with Docker
