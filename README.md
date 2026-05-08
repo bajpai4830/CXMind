@@ -27,7 +27,7 @@ Core outcomes:
 
 ## Architecture
 
-### High-Level Flow
+### High - Level Flow
 
 1. Frontend users authenticate through the FastAPI auth endpoints.
 2. Customer interactions are submitted through API or CSV ingestion routes.
